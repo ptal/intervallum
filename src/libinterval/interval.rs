@@ -14,7 +14,9 @@
 
 use std::cmp::{min, max};
 use std::num::SignedInt;
+use std::num::Int;
 
+// Closed interval (endpoints included).
 #[derive(Eq, Show, Copy, Clone)]
 pub struct Interval {
   lb: int,
@@ -35,12 +37,24 @@ impl Interval
     Interval { lb: lb, ub: ub }
   }
 
+  pub fn lower(self) -> int { self.lb }
+
+  pub fn upper(self) -> int { self.ub }
+
   pub fn empty() -> Interval {
     Interval::new(1, 0)
   }
 
   pub fn singleton(x: int) -> Interval {
     Interval::new(x, x)
+  }
+
+  pub fn left_open(ub: int) -> Interval {
+    Interval::new(Int::min_value(), ub)
+  }
+
+  pub fn right_open(lb: int) -> Interval {
+    Interval::new(lb, Int::max_value())
   }
 
   pub fn is_singleton(self) -> bool {
@@ -67,6 +81,10 @@ impl Interval
     }
   }
 
+  pub fn is_proper_subset_of(self, i: Interval) -> bool {
+    self.is_subset_of(i) && self != i
+  }
+
   pub fn intersection(self, i: Interval) -> Interval {
     Interval::new(
       max(self.lb, i.lb),
@@ -83,6 +101,20 @@ impl Interval
         max(self.ub, i.ub)
       )
     }
+  }
+
+  // A - B is equivalent to A /\ ~B
+  // However the complement operation doesn't make sense here
+  // because it'd nearly always ends up to the whole integer interval.
+  // Instead we use this equivalence:
+  //   A - B is equivalent to:
+  //      A /\ [inf,B.lb-1]
+  //    \/
+  //      A /\ [B.ub+1, inf]
+  pub fn difference(self, i: Interval) -> Interval {
+    let left = self.intersection(Interval::left_open(i.lb-1));
+    let right = self.intersection(Interval::right_open(i.ub+1));
+    left.hull(right)
   }
 
   pub fn is_disjoint(self, i: Interval) -> bool {
@@ -132,7 +164,9 @@ mod tests {
   const i0_10: Interval = Interval {lb: 0, ub: 10};
   const i0_15: Interval = Interval {lb: 0, ub: 15};
   const im5_10: Interval = Interval {lb: -5, ub: 10};
+  const im5_m1: Interval = Interval {lb: -5, ub: -1};
   const i5_10: Interval = Interval {lb: 5, ub: 10};
+  const i6_10: Interval = Interval {lb: 6, ub: 10};
   const i0_5: Interval = Interval {lb: 0, ub: 5};
   const i0_4: Interval = Interval {lb: 0, ub: 4};
   const im5_5: Interval = Interval {lb: -5, ub: 5};
@@ -240,6 +274,63 @@ mod tests {
     for (x,y,(r1,r2)) in sym_cases.into_iter() {
       assert!(x.is_subset_of(y) == r1, "{} is subset of {} is not equal to {}", x, y, r1);
       assert!(y.is_subset_of(x) == r2, "{} is subset of {} is not equal to {}", y, x, r2);
+    }
+  }
+
+  #[test]
+  fn is_proper_subset_of_test() {
+    let cases = vec![
+      (zero, zero,          false),
+      (i1_2, i1_2,          false),
+      (empty, empty,        false),
+      (invalid, invalid,    false)
+    ];
+
+    // For each cases (x, y, res)
+    // * x and y are the values
+    // * res is a tuple (r, sym) where
+    //    * r is true if x is a proper subset of y
+    //    * sym is true if y is a proper subset of x
+    let sym_cases = vec![
+      // ||
+      // |-|
+      (empty, zero,         (true, false)),
+      (invalid, zero,       (true, false)),
+      (empty, invalid,      (false, false)),
+      // ||
+      //|--|
+      (empty, i1_2,         (true, false)),
+      (invalid, i1_2,       (true, false)),
+      //  |--|
+      // |----|
+      (i1_2, i0_10,         (true, false)),
+      // |--|
+      //     |--|
+      (i0_4, i5_10,         (false, false)),
+      // |--|
+      //    |--|
+      (i0_5, i5_10,         (false, false)),
+      // |---|
+      //   |---|
+      (im5_5, i0_10,        (false, false)),
+      // |--|
+      //         |--|
+      (i0_10, i20_30,       (false, false)),
+      // |--|
+      // |---|
+      (i0_10, i0_15,        (true, false)),
+      // |---|
+      //  |--|
+      (im5_10, i0_10,       (false, true))
+    ];
+
+    for (x,y,r) in cases.into_iter() {
+      assert!(x.is_proper_subset_of(y) == r, "{} is proper subset of {} is not equal to {}", x, y, r);
+    }
+
+    for (x,y,(r1,r2)) in sym_cases.into_iter() {
+      assert!(x.is_proper_subset_of(y) == r1, "{} is proper subset of {} is not equal to {}", x, y, r1);
+      assert!(y.is_proper_subset_of(x) == r2, "{} is proper subset of {} is not equal to {}", y, x, r2);
     }
   }
 
@@ -413,4 +504,62 @@ mod tests {
       assert!(y.is_disjoint(x) == r, "{} is disjoint of {} is not equal to {}", y, x, r);
     }
   }
+
+  #[test]
+  fn difference_test() {
+    let cases = vec![
+      (zero, zero,          empty),
+      (i1_2, i1_2,          empty),
+      (empty, empty,        empty),
+      (invalid, invalid,    empty)
+    ];
+
+    // For each cases (x, y, res)
+    // * x and y are the values
+    // * res is a tuple (r, sym) where
+    //    * x diff y == r
+    //    * y diff x == sym
+    let sym_cases = vec![
+      // ||
+      // |-|
+      (empty, zero,         (empty, zero)),
+      (invalid, zero,       (empty, zero)),
+      (empty, invalid,      (empty, empty)),
+      // ||
+      //|--|
+      (empty, i1_2,         (empty, i1_2)),
+      (invalid, i1_2,       (empty, i1_2)),
+      //  |--|
+      // |----|
+      (i1_2, i0_10,         (empty, i0_10)),
+      // |--|
+      //     |--|
+      (i0_4, i5_10,         (i0_4, i5_10)),
+      // |--|
+      //    |--|
+      (i0_5, i5_10,         ((0,4).to_interval(), i6_10)),
+      // |---|
+      //   |---|
+      (im5_5, i0_10,        (im5_m1, i6_10)),
+      // |--|
+      //         |--|
+      (i0_10, i20_30,       (i0_10, i20_30)),
+      // |--|
+      // |---|
+      (i0_10, i0_15,        (empty, (11,15).to_interval())),
+      // |---|
+      //  |--|
+      (im5_10, i0_10,       (im5_m1, empty))
+    ];
+
+    for (x,y,r) in cases.into_iter() {
+      assert!(x.difference(y) == r, "{} diff {} is not equal to {}", x, y, r);
+    }
+
+    for (x,y,(r1,r2)) in sym_cases.into_iter() {
+      assert!(x.difference(y) == r1, "{} diff {} is not equal to {}", x, y, r1);
+      assert!(y.difference(x) == r2, "{} diff {} is not equal to {}", y, x, r2);
+    }
+  }
+
 }

@@ -19,7 +19,6 @@
 // #![license = "Apache v2"]
 #![crate_type = "dylib"]
 
-
- #[allow(dead_code)]
+#[allow(dead_code)]
 
 mod interval;
