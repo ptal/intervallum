@@ -48,7 +48,7 @@ impl Interval
     self.lb > self.ub
   }
 
-  pub fn member(self, x: int) -> bool {
+  pub fn has_member(self, x: int) -> bool {
     x >= self.lb && x <= self.ub
   }
 
@@ -122,8 +122,12 @@ mod tests {
 
   const i1_2: Interval = Interval {lb: 1, ub: 2};
   const i0_10: Interval = Interval {lb: 0, ub: 10};
+  const i0_15: Interval = Interval {lb: 0, ub: 15};
+  const im5_10: Interval = Interval {lb: -5, ub: 10};
   const i5_10: Interval = Interval {lb: 5, ub: 10};
   const i0_5: Interval = Interval {lb: 0, ub: 5};
+  const i0_4: Interval = Interval {lb: 0, ub: 4};
+  const im5_5: Interval = Interval {lb: -5, ub: 5};
   const i20_30: Interval = Interval {lb: 20, ub: 30};
   const im30_m20: Interval = Interval {lb: -30, ub: -20};
 
@@ -144,5 +148,82 @@ mod tests {
     assert!(i1_2.size() == 2);
     assert!(i0_10.size() == 11);
     assert!(im30_m20.size() == 11);
+  }
+
+  #[test]
+  fn member_test() {
+    assert!(i1_2.has_member(1));
+    assert!(i1_2.has_member(2));
+    assert!(!i1_2.has_member(0));
+    assert!(!i1_2.has_member(3));
+
+    assert!(zero.has_member(0));
+    assert!(!zero.has_member(1));
+
+    assert!(!empty.has_member(0));
+    assert!(!empty.has_member(1));
+    assert!(!empty.has_member(5));
+    assert!(!empty.has_member(-5));
+
+    assert!(!invalid.has_member(0));
+    assert!(!invalid.has_member(-11));
+    assert!(!invalid.has_member(11));
+  }
+
+  #[test]
+  fn is_subset_of_test() {
+    let cases = vec![
+      (zero, zero,          true),
+      (i1_2, i1_2,          true),
+      (empty, empty,        true),
+      (invalid, invalid,    true)
+    ];
+
+    // For each cases (x, y, res)
+    // * x and y are the values
+    // * res is a tuple (r, sym) where
+    //    * r is true if x is a subset of y
+    //    * sym is true if y is a subset of x
+    let sym_cases = vec![
+      // ||
+      // |-|
+      (empty, zero,         (true, false)),
+      (invalid, zero,       (true, false)),
+      (empty, invalid,      (true, true)),
+      // ||
+      //|--|
+      (empty, i1_2,         (true, false)),
+      (invalid, i1_2,       (true, false)),
+      //  |--|
+      // |----|
+      (i1_2, i0_10,         (true, false)),
+      // |--|
+      //     |--|
+      (i0_4, i5_10,         (false, false)),
+      // |--|
+      //    |--|
+      (i0_5, i5_10,         (false, false)),
+      // |---|
+      //   |---|
+      (im5_5, i0_10,        (false, false)),
+      // |--|
+      //         |--|
+      (i0_10, i20_30,       (false, false)),
+      // |--|
+      // |---|
+      (i0_10, i0_15,        (true, false)),
+      // |---|
+      //  |--|
+      (im5_10, i0_10,       (false, true))
+    ];
+
+    for (x,y,r) in cases.into_iter() {
+      assert!(x.is_subset_of(y) == r, "{} is subset of {} is not equal to {}", x, y, r);
+    }
+
+    for (x,y,(r1,r2)) in sym_cases.into_iter() {
+      assert!(x.is_subset_of(y) == r1, "{} is subset of {} is not equal to {}", x, y, r1);
+      assert!(y.is_subset_of(x) == r2, "{} is subset of {} is not equal to {}", y, x, r2);
+    }
   }
 }
