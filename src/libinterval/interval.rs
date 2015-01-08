@@ -85,7 +85,7 @@ impl Interval
     }
   }
 
-  fn disjoint(self, i: Interval) -> bool {
+  pub fn is_disjoint(self, i: Interval) -> bool {
     self.lb > i.ub || i.lb > self.ub
   }
 }
@@ -312,7 +312,7 @@ mod tests {
     // For each cases (x, y, res)
     // * x and y are the values
     // * res is the expected result, which should be the same
-    // for x intersect y and y intersect x since the intersection
+    // for the union hull of (x,y) or (y,x) since the union hull
     // is commutative.
     let sym_cases = vec![
       // ||
@@ -354,6 +354,63 @@ mod tests {
     for (x,y,r) in sym_cases.into_iter() {
       assert!(x.hull(y) == r, "{} hull {} is not equal to {}", x, y, r);
       assert!(y.hull(x) == r, "{} hull {} is not equal to {}", y, x, r);
+    }
+  }
+
+  #[test]
+  fn is_disjoint_test() {
+    let cases = vec![
+      (zero, zero,          false),
+      (i1_2, i1_2,          false),
+      (empty, empty,        true),
+      (invalid, invalid,    true)
+    ];
+
+    // For each cases (x, y, res)
+    // * x and y are the values
+    // * res is the expected result, which should be the same
+    // for x is disjoint of y and y is disjoint of x since the
+    // disjoint operation is commutative.
+    let sym_cases = vec![
+      // ||
+      // |-|
+      (empty, zero,         true),
+      (invalid, zero,       true),
+      (empty, invalid,      true),
+      // ||
+      //|--|
+      (empty, i1_2,         true),
+      (invalid, i1_2,       true),
+      //  |--|
+      // |----|
+      (i1_2, i0_10,         false),
+      // |--|
+      //     |--|
+      (i0_4, i5_10,         true),
+      // |--|
+      //    |--|
+      (i0_5, i5_10,         false),
+      // |---|
+      //   |---|
+      (im5_5, i0_10,        false),
+      // |--|
+      //         |--|
+      (i0_10, i20_30,       true),
+      // |--|
+      // |---|
+      (i0_10, i0_15,        false),
+      // |---|
+      //  |--|
+      (im5_10, i0_10,       false)
+    ];
+
+    for (x,y,r) in cases.into_iter() {
+      assert!(x.is_disjoint(y) == r, "{} is disjoint of {} is not equal to {}", x, y, r);
+    }
+
+    for (x,y,r) in sym_cases.into_iter() {
+      assert!(x.is_disjoint(y) == r, "{} is disjoint of {} is not equal to {}", x, y, r);
+      assert!(y.is_disjoint(x) == r, "{} is disjoint of {} is not equal to {}", y, x, r);
     }
   }
 }
