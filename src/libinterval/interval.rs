@@ -299,4 +299,61 @@ mod tests {
       assert!(y.intersection(x) == r, "{} intersection {} is not equal to {}", y, x, r);
     }
   }
+
+  #[test]
+  fn hull_test() {
+    let cases = vec![
+      (zero, zero,          zero),
+      (i1_2, i1_2,          i1_2),
+      (empty, empty,        empty),
+      (invalid, invalid,    invalid)
+    ];
+
+    // For each cases (x, y, res)
+    // * x and y are the values
+    // * res is the expected result, which should be the same
+    // for x intersect y and y intersect x since the intersection
+    // is commutative.
+    let sym_cases = vec![
+      // ||
+      // |-|
+      (empty, zero,         zero),
+      (invalid, zero,       zero),
+      (empty, invalid,      empty),
+      // ||
+      //|--|
+      (empty, i1_2,         i1_2),
+      (invalid, i1_2,       i1_2),
+      //  |--|
+      // |----|
+      (i1_2, i0_10,         i0_10),
+      // |--|
+      //     |--|
+      (i0_4, i5_10,         i0_10),
+      // |--|
+      //    |--|
+      (i0_5, i5_10,         i0_10),
+      // |---|
+      //   |---|
+      (im5_5, i0_10,        (-5,10).to_interval()),
+      // |--|
+      //         |--|
+      (i0_10, i20_30,       (0,30).to_interval()),
+      // |--|
+      // |---|
+      (i0_10, i0_15,        i0_15),
+      // |---|
+      //  |--|
+      (im5_10, i0_10,       im5_10)
+    ];
+
+    for (x,y,r) in cases.into_iter() {
+      assert!(x.hull(y) == r, "{} hull {} is not equal to {}", x, y, r);
+    }
+
+    for (x,y,r) in sym_cases.into_iter() {
+      assert!(x.hull(y) == r, "{} hull {} is not equal to {}", x, y, r);
+      assert!(y.hull(x) == r, "{} hull {} is not equal to {}", y, x, r);
+    }
+  }
 }
