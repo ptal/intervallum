@@ -92,7 +92,7 @@ impl Interval
     )
   }
 
-  pub fn hull(self, i: Interval) -> Interval {
+  pub fn join(self, i: Interval) -> Interval {
     if self.is_empty() { i }
     else if i.is_empty() { self }
     else {
@@ -114,7 +114,7 @@ impl Interval
   pub fn difference(self, i: Interval) -> Interval {
     let left = self.intersection(Interval::left_open(i.lb-1));
     let right = self.intersection(Interval::right_open(i.ub+1));
-    left.hull(right)
+    left.join(right)
   }
 
   pub fn is_disjoint(self, i: Interval) -> bool {
@@ -439,12 +439,12 @@ mod tests {
     ];
 
     for (x,y,r) in cases.into_iter() {
-      assert!(x.hull(y) == r, "{} hull {} is not equal to {}", x, y, r);
+      assert!(x.join(y) == r, "{} join {} is not equal to {}", x, y, r);
     }
 
     for (x,y,r) in sym_cases.into_iter() {
-      assert!(x.hull(y) == r, "{} hull {} is not equal to {}", x, y, r);
-      assert!(y.hull(x) == r, "{} hull {} is not equal to {}", y, x, r);
+      assert!(x.join(y) == r, "{} join {} is not equal to {}", x, y, r);
+      assert!(y.join(x) == r, "{} join {} is not equal to {}", y, x, r);
     }
   }
 
