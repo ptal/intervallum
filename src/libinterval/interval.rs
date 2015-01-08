@@ -15,10 +15,18 @@
 use std::cmp::{min, max};
 use std::num::SignedInt;
 
-#[derive(PartialEq, Eq, Show, Copy, Clone)]
+#[derive(Eq, Show, Copy, Clone)]
 pub struct Interval {
   lb: int,
   ub: int
+}
+
+impl PartialEq<Interval> for Interval
+{
+  fn eq(&self, other: &Interval) -> bool {
+    if self.is_empty() && other.is_empty() { true }
+    else { self.lb == other.lb && self.ub == other.ub }
+  }
 }
 
 impl Interval
@@ -136,6 +144,14 @@ mod tests {
     let id = i1_2.clone().to_interval();
     assert!(i1_2 == id);
     assert!(i1_2 == Interval::new(1, 2));
+  }
+
+  #[test]
+  fn equality_test() {
+    assert!(empty == empty);
+    assert!(empty == invalid);
+    assert!(invalid == empty);
+    assert!(i1_2 == i1_2);
   }
 
   #[test]
