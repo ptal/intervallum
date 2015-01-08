@@ -1,4 +1,4 @@
-// Copyright 2014 Pierre Talbot (IRCAM)
+// Copyright 2015 Pierre Talbot (IRCAM)
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,8 +15,8 @@
 
 #![crate_name = "interval"]
 #![experimental]
-#![comment = "Interval Arithmetic Library"]
-#![license = "Apache v2"]
+// #![comment = "Interval Arithmetic Library"]
+// #![license = "Apache v2"]
 #![crate_type = "dylib"]
 
 
