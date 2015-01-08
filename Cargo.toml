@@ -1,0 +1,10 @@
+[package]
+
+name = "interval"
+version = "0.1.0"
+authors = [ "Pierre Talbot <ptalbot@hyc.io>" ]
+
+[lib]
+
+name = "interval"
+path = "src/libinterval/lib.rs"
