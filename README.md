@@ -8,7 +8,7 @@ See the github issues to see the work remaining and feel free to send your PR.
 Quick example:
 
 ```
-// Two similars ways for creating intervals.
+// Two similar ways for creating intervals.
 let a = (2, 10).to_interval();
 let b = Interval::new(12, 15);
 

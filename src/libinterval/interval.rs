@@ -19,8 +19,8 @@ use std::num::Int;
 // Closed interval (endpoints included).
 #[derive(Eq, Show, Copy, Clone)]
 pub struct Interval {
-  lb: int,
-  ub: int
+  lb: i32,
+  ub: i32
 }
 
 impl PartialEq<Interval> for Interval
@@ -33,27 +33,27 @@ impl PartialEq<Interval> for Interval
 
 impl Interval
 {
-  pub fn new(lb: int, ub: int) -> Interval {
+  pub fn new(lb: i32, ub: i32) -> Interval {
     Interval { lb: lb, ub: ub }
   }
 
-  pub fn lower(self) -> int { self.lb }
+  pub fn lower(self) -> i32 { self.lb }
 
-  pub fn upper(self) -> int { self.ub }
+  pub fn upper(self) -> i32 { self.ub }
 
   pub fn empty() -> Interval {
     Interval::new(1, 0)
   }
 
-  pub fn singleton(x: int) -> Interval {
+  pub fn singleton(x: i32) -> Interval {
     Interval::new(x, x)
   }
 
-  pub fn left_open(ub: int) -> Interval {
+  pub fn left_open(ub: i32) -> Interval {
     Interval::new(Int::min_value(), ub)
   }
 
-  pub fn right_open(lb: int) -> Interval {
+  pub fn right_open(lb: i32) -> Interval {
     Interval::new(lb, Int::max_value())
   }
 
@@ -61,16 +61,16 @@ impl Interval
     self.lb == self.ub
   }
 
-  pub fn size(self) -> uint {
+  pub fn size(self) -> u32 {
     if self.is_empty() { 0 }
-    else { (self.ub - self.lb + 1).abs() as uint }
+    else { (self.ub - self.lb + 1).abs() as u32 }
   }
 
   pub fn is_empty(self) -> bool {
     self.lb > self.ub
   }
 
-  pub fn has_member(self, x: int) -> bool {
+  pub fn has_member(self, x: i32) -> bool {
     x >= self.lb && x <= self.ub
   }
 
@@ -130,7 +130,7 @@ impl ToInterval for Interval {
   fn to_interval(self) -> Interval { self }
 }
 
-impl ToInterval for (int, int) {
+impl ToInterval for (i32, i32) {
   fn to_interval(self) -> Interval {
     let (a, b) = self;
     Interval::new(a, b)
@@ -143,7 +143,7 @@ impl ToInterval for () {
   }
 }
 
-impl ToInterval for int {
+impl ToInterval for i32 {
   fn to_interval(self) -> Interval {
     Interval::singleton(self)
   }
