@@ -268,12 +268,12 @@ mod tests {
     ];
 
     for (x,y,r) in cases.into_iter() {
-      assert!(x.is_subset_of(y) == r, "{} is subset of {} is not equal to {}", x, y, r);
+      assert!(x.is_subset_of(y) == r, "{:?} is subset of {:?} is not equal to {:?}", x, y, r);
     }
 
     for (x,y,(r1,r2)) in sym_cases.into_iter() {
-      assert!(x.is_subset_of(y) == r1, "{} is subset of {} is not equal to {}", x, y, r1);
-      assert!(y.is_subset_of(x) == r2, "{} is subset of {} is not equal to {}", y, x, r2);
+      assert!(x.is_subset_of(y) == r1, "{:?} is subset of {:?} is not equal to {:?}", x, y, r1);
+      assert!(y.is_subset_of(x) == r2, "{:?} is subset of {:?} is not equal to {:?}", y, x, r2);
     }
   }
 
@@ -325,12 +325,12 @@ mod tests {
     ];
 
     for (x,y,r) in cases.into_iter() {
-      assert!(x.is_proper_subset_of(y) == r, "{} is proper subset of {} is not equal to {}", x, y, r);
+      assert!(x.is_proper_subset_of(y) == r, "{:?} is proper subset of {:?} is not equal to {:?}", x, y, r);
     }
 
     for (x,y,(r1,r2)) in sym_cases.into_iter() {
-      assert!(x.is_proper_subset_of(y) == r1, "{} is proper subset of {} is not equal to {}", x, y, r1);
-      assert!(y.is_proper_subset_of(x) == r2, "{} is proper subset of {} is not equal to {}", y, x, r2);
+      assert!(x.is_proper_subset_of(y) == r1, "{:?} is proper subset of {:?} is not equal to {:?}", x, y, r1);
+      assert!(y.is_proper_subset_of(x) == r2, "{:?} is proper subset of {:?} is not equal to {:?}", y, x, r2);
     }
   }
 
@@ -382,12 +382,12 @@ mod tests {
     ];
 
     for (x,y,r) in cases.into_iter() {
-      assert!(x.intersection(y) == r, "{} intersection {} is not equal to {}", x, y, r);
+      assert!(x.intersection(y) == r, "{:?} intersection {:?} is not equal to {:?}", x, y, r);
     }
 
     for (x,y,r) in sym_cases.into_iter() {
-      assert!(x.intersection(y) == r, "{} intersection {} is not equal to {}", x, y, r);
-      assert!(y.intersection(x) == r, "{} intersection {} is not equal to {}", y, x, r);
+      assert!(x.intersection(y) == r, "{:?} intersection {:?} is not equal to {:?}", x, y, r);
+      assert!(y.intersection(x) == r, "{:?} intersection {:?} is not equal to {:?}", y, x, r);
     }
   }
 
@@ -439,12 +439,12 @@ mod tests {
     ];
 
     for (x,y,r) in cases.into_iter() {
-      assert!(x.join(y) == r, "{} join {} is not equal to {}", x, y, r);
+      assert!(x.join(y) == r, "{:?} join {:?} is not equal to {:?}", x, y, r);
     }
 
     for (x,y,r) in sym_cases.into_iter() {
-      assert!(x.join(y) == r, "{} join {} is not equal to {}", x, y, r);
-      assert!(y.join(x) == r, "{} join {} is not equal to {}", y, x, r);
+      assert!(x.join(y) == r, "{:?} join {:?} is not equal to {:?}", x, y, r);
+      assert!(y.join(x) == r, "{:?} join {:?} is not equal to {:?}", y, x, r);
     }
   }
 
@@ -496,12 +496,12 @@ mod tests {
     ];
 
     for (x,y,r) in cases.into_iter() {
-      assert!(x.is_disjoint(y) == r, "{} is disjoint of {} is not equal to {}", x, y, r);
+      assert!(x.is_disjoint(y) == r, "{:?} is disjoint of {:?} is not equal to {:?}", x, y, r);
     }
 
     for (x,y,r) in sym_cases.into_iter() {
-      assert!(x.is_disjoint(y) == r, "{} is disjoint of {} is not equal to {}", x, y, r);
-      assert!(y.is_disjoint(x) == r, "{} is disjoint of {} is not equal to {}", y, x, r);
+      assert!(x.is_disjoint(y) == r, "{:?} is disjoint of {:?} is not equal to {:?}", x, y, r);
+      assert!(y.is_disjoint(x) == r, "{:?} is disjoint of {:?} is not equal to {:?}", y, x, r);
     }
   }
 
@@ -553,12 +553,12 @@ mod tests {
     ];
 
     for (x,y,r) in cases.into_iter() {
-      assert!(x.difference(y) == r, "{} diff {} is not equal to {}", x, y, r);
+      assert!(x.difference(y) == r, "{:?} diff {:?} is not equal to {:?}", x, y, r);
     }
 
     for (x,y,(r1,r2)) in sym_cases.into_iter() {
-      assert!(x.difference(y) == r1, "{} diff {} is not equal to {}", x, y, r1);
-      assert!(y.difference(x) == r2, "{} diff {} is not equal to {}", y, x, r2);
+      assert!(x.difference(y) == r1, "{:?} diff {:?} is not equal to {:?}", x, y, r1);
+      assert!(y.difference(x) == r2, "{:?} diff {:?} is not equal to {:?}", y, x, r2);
     }
   }
 
