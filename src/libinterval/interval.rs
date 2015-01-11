@@ -118,7 +118,7 @@ impl Interval
   }
 
   pub fn is_disjoint(self, i: Interval) -> bool {
-    self.lb > i.ub || i.lb > self.ub
+    self.is_empty() || i.is_empty() || self.lb > i.ub || i.lb > self.ub
   }
 }
 
@@ -176,28 +176,28 @@ mod tests {
   #[test]
   fn to_interval_id_test() {
     let id = i1_2.clone().to_interval();
-    assert!(i1_2 == id);
-    assert!(i1_2 == Interval::new(1, 2));
+    assert_eq!(i1_2, id);
+    assert_eq!(i1_2, Interval::new(1, 2));
   }
 
   #[test]
   fn equality_test() {
-    assert!(empty == empty);
-    assert!(empty == invalid);
-    assert!(invalid == empty);
-    assert!(i1_2 == i1_2);
+    assert_eq!(empty, empty);
+    assert_eq!(empty, invalid);
+    assert_eq!(invalid, empty);
+    assert_eq!(i1_2, i1_2);
   }
 
   #[test]
   fn size_test() {
-    assert!(zero.size() == 1);
-    assert!(one.size() == 1);
-    assert!(empty.size() == 0);
-    assert!(invalid.size() == 0);
+    assert_eq!(zero.size(), 1);
+    assert_eq!(one.size(), 1);
+    assert_eq!(empty.size(), 0);
+    assert_eq!(invalid.size(), 0);
 
-    assert!(i1_2.size() == 2);
-    assert!(i0_10.size() == 11);
-    assert!(im30_m20.size() == 11);
+    assert_eq!(i1_2.size(), 2);
+    assert_eq!(i0_10.size(), 11);
+    assert_eq!(im30_m20.size(), 11);
   }
 
   #[test]
@@ -243,6 +243,7 @@ mod tests {
       // ||
       //|--|
       (empty, i1_2,         (true, false)),
+      (empty, i0_10,        (true, false)),
       (invalid, i1_2,       (true, false)),
       //  |--|
       // |----|
@@ -300,6 +301,7 @@ mod tests {
       // ||
       //|--|
       (empty, i1_2,         (true, false)),
+      (empty, i0_10,        (true, false)),
       (invalid, i1_2,       (true, false)),
       //  |--|
       // |----|
@@ -357,6 +359,7 @@ mod tests {
       // ||
       //|--|
       (empty, i1_2,         empty),
+      (empty, i0_10,        empty),
       (invalid, i1_2,       empty),
       //  |--|
       // |----|
@@ -414,6 +417,7 @@ mod tests {
       // ||
       //|--|
       (empty, i1_2,         i1_2),
+      (empty, i0_10,        i0_10),
       (invalid, i1_2,       i1_2),
       //  |--|
       // |----|
@@ -471,6 +475,7 @@ mod tests {
       // ||
       //|--|
       (empty, i1_2,         true),
+      (empty, i0_10,        true),
       (invalid, i1_2,       true),
       //  |--|
       // |----|
@@ -528,6 +533,7 @@ mod tests {
       // ||
       //|--|
       (empty, i1_2,         (empty, i1_2)),
+      (empty, i0_10,        (empty, i0_10)),
       (invalid, i1_2,       (empty, i1_2)),
       //  |--|
       // |----|
