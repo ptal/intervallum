@@ -17,7 +17,7 @@ use std::num::SignedInt;
 use std::num::Int;
 
 // Closed interval (endpoints included).
-#[derive(Eq, Show, Copy, Clone)]
+#[derive(Eq, Debug, Copy, Clone)]
 pub struct Interval {
   lb: i32,
   ub: i32
