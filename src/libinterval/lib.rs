@@ -14,9 +14,11 @@
 
 
 #![crate_name = "interval"]
-#![experimental]
+#![unstable]
 // #![comment = "Interval Arithmetic Library"]
 // #![license = "Apache v2"]
 #![crate_type = "dylib"]
+
+#![feature(core)]
 
 pub mod interval;
