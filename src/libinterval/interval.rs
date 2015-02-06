@@ -13,86 +13,93 @@
 // limitations under the License.
 
 use std::cmp::{min, max};
-use std::num::SignedInt;
 use std::num::Int;
 
 // Closed interval (endpoints included).
-#[derive(Eq, Debug, Copy, Clone)]
-pub struct Interval {
-  lb: i32,
-  ub: i32
+#[derive(Debug, Copy, Clone)]
+pub struct Interval<Bound> {
+  lb: Bound,
+  ub: Bound
 }
 
-impl PartialEq<Interval> for Interval
+impl<Bound: Int> PartialEq<Interval<Bound>> for Interval<Bound>
 {
-  fn eq(&self, other: &Interval) -> bool {
+  fn eq(&self, other: &Interval<Bound>) -> bool {
     if self.is_empty() && other.is_empty() { true }
     else { self.lb == other.lb && self.ub == other.ub }
   }
 }
 
-impl Interval
+impl<Bound: Int> Interval<Bound>
 {
-  pub fn new(lb: i32, ub: i32) -> Interval {
+  pub fn new(lb: Bound, ub: Bound) -> Interval<Bound> {
     Interval { lb: lb, ub: ub }
   }
 
-  pub fn lower(self) -> i32 { self.lb }
+  pub fn lower(self) -> Bound { self.lb }
 
-  pub fn upper(self) -> i32 { self.ub }
+  pub fn upper(self) -> Bound { self.ub }
 
-  pub fn empty() -> Interval {
-    Interval::new(1, 0)
+  pub fn empty() -> Interval<Bound> {
+    Interval::new(<Bound as Int>::one(), <Bound as Int>::zero())
   }
 
-  pub fn singleton(x: i32) -> Interval {
+  pub fn singleton(x: Bound) -> Interval<Bound> {
     Interval::new(x, x)
   }
 
-  pub fn left_open(ub: i32) -> Interval {
+  pub fn left_open(ub: Bound) -> Interval<Bound> {
     Interval::new(Int::min_value(), ub)
   }
 
-  pub fn right_open(lb: i32) -> Interval {
+  pub fn right_open(lb: Bound) -> Interval<Bound> {
     Interval::new(lb, Int::max_value())
+  }
+
+  // FIX: Rust limitation, cannot specialize Interval for unsigned types.
+  //      Error: multiple declaration of size.
+  // Because `abs` is only defined for signed type, we "hardcode" it.
+  // TODO: Handle overflow.
+  pub fn size(self) -> Bound {
+    if self.is_empty() { <Bound as Int>::zero() }
+    else {
+      let res = self.ub - self.lb + <Bound as Int>::one();
+      if res >= <Bound as Int>::zero() { res }
+      else { <Bound as Int>::zero() - res }
+    }
   }
 
   pub fn is_singleton(self) -> bool {
     self.lb == self.ub
   }
 
-  pub fn size(self) -> u32 {
-    if self.is_empty() { 0 }
-    else { (self.ub - self.lb + 1).abs() as u32 }
-  }
-
   pub fn is_empty(self) -> bool {
     self.lb > self.ub
   }
 
-  pub fn has_member(self, x: i32) -> bool {
+  pub fn has_member(self, x: Bound) -> bool {
     x >= self.lb && x <= self.ub
   }
 
-  pub fn is_subset_of(self, i: Interval) -> bool {
+  pub fn is_subset_of(self, i: Interval<Bound>) -> bool {
     if self.is_empty() { true }
     else {
       self.lb >= i.lb && self.ub <= i.ub
     }
   }
 
-  pub fn is_proper_subset_of(self, i: Interval) -> bool {
+  pub fn is_proper_subset_of(self, i: Interval<Bound>) -> bool {
     self.is_subset_of(i) && self != i
   }
 
-  pub fn intersection(self, i: Interval) -> Interval {
+  pub fn intersection(self, i: Interval<Bound>) -> Interval<Bound> {
     Interval::new(
       max(self.lb, i.lb),
       min(self.ub, i.ub)
     )
   }
 
-  pub fn join(self, i: Interval) -> Interval {
+  pub fn join(self, i: Interval<Bound>) -> Interval<Bound> {
     if self.is_empty() { i }
     else if i.is_empty() { self }
     else {
@@ -111,67 +118,66 @@ impl Interval
   //      A /\ [inf,B.lb-1]
   //    \/
   //      A /\ [B.ub+1, inf]
-  pub fn difference(self, i: Interval) -> Interval {
-    let left = self.intersection(Interval::left_open(i.lb-1));
-    let right = self.intersection(Interval::right_open(i.ub+1));
+  pub fn difference(self, i: Interval<Bound>) -> Interval<Bound> {
+    let left = self.intersection(Interval::left_open(i.lb - <Bound as Int>::one()));
+    let right = self.intersection(Interval::right_open(i.ub + <Bound as Int>::one()));
     left.join(right)
   }
 
-  pub fn is_disjoint(self, i: Interval) -> bool {
+  pub fn is_disjoint(self, i: Interval<Bound>) -> bool {
     self.is_empty() || i.is_empty() || self.lb > i.ub || i.lb > self.ub
   }
 }
 
-pub trait ToInterval {
-  fn to_interval(self) -> Interval;
+pub trait ToInterval<Bound: Int> {
+  fn to_interval(self) -> Interval<Bound>;
 }
 
-impl ToInterval for Interval {
-  fn to_interval(self) -> Interval { self }
+impl<Bound: Int> ToInterval<Bound> for Interval<Bound> {
+  fn to_interval(self) -> Interval<Bound> { self }
 }
 
-impl ToInterval for (i32, i32) {
-  fn to_interval(self) -> Interval {
+impl<Bound: Int> ToInterval<Bound> for (Bound, Bound) {
+  fn to_interval(self) -> Interval<Bound> {
     let (a, b) = self;
     Interval::new(a, b)
   }
 }
 
-impl ToInterval for () {
-  fn to_interval(self) -> Interval {
+impl<Bound: Int> ToInterval<Bound> for () {
+  fn to_interval(self) -> Interval<Bound> {
     Interval::empty()
   }
 }
 
-impl ToInterval for i32 {
-  fn to_interval(self) -> Interval {
+impl<Bound: Int> ToInterval<Bound> for Bound {
+  fn to_interval(self) -> Interval<Bound> {
     Interval::singleton(self)
   }
 }
-
 
 #[allow(non_upper_case_globals)]
 #[cfg(test)]
 mod tests {
   use super::*;
 
-  const empty: Interval = Interval {lb: 1, ub: 0};
-  const invalid: Interval = Interval {lb: 10, ub: -10};
-  const zero: Interval = Interval {lb: 0, ub: 0};
-  const one: Interval = Interval {lb: 1, ub: 1};
+  const empty: Interval<i32> = Interval {lb: 1, ub: 0};
+  const invalid: Interval<i32> = Interval {lb: 10, ub: -10};
+  const zero: Interval<i32> = Interval {lb: 0, ub: 0};
+  const one: Interval<i32> = Interval {lb: 1, ub: 1};
 
-  const i1_2: Interval = Interval {lb: 1, ub: 2};
-  const i0_10: Interval = Interval {lb: 0, ub: 10};
-  const i0_15: Interval = Interval {lb: 0, ub: 15};
-  const im5_10: Interval = Interval {lb: -5, ub: 10};
-  const im5_m1: Interval = Interval {lb: -5, ub: -1};
-  const i5_10: Interval = Interval {lb: 5, ub: 10};
-  const i6_10: Interval = Interval {lb: 6, ub: 10};
-  const i0_5: Interval = Interval {lb: 0, ub: 5};
-  const i0_4: Interval = Interval {lb: 0, ub: 4};
-  const im5_5: Interval = Interval {lb: -5, ub: 5};
-  const i20_30: Interval = Interval {lb: 20, ub: 30};
-  const im30_m20: Interval = Interval {lb: -30, ub: -20};
+  const i1_2: Interval<i32> = Interval {lb: 1, ub: 2};
+  const i0_10: Interval<i32> = Interval {lb: 0, ub: 10};
+  const i0_15: Interval<i32> = Interval {lb: 0, ub: 15};
+  const im5_10: Interval<i32> = Interval {lb: -5, ub: 10};
+  const im5_m1: Interval<i32> = Interval {lb: -5, ub: -1};
+  const i5_10: Interval<i32> = Interval {lb: 5, ub: 10};
+  const i6_10: Interval<i32> = Interval {lb: 6, ub: 10};
+  const i0_5: Interval<i32> = Interval {lb: 0, ub: 5};
+  const i0_4: Interval<i32> = Interval {lb: 0, ub: 4};
+  const im5_5: Interval<i32> = Interval {lb: -5, ub: 5};
+  const i20_30: Interval<i32> = Interval {lb: 20, ub: 30};
+  const im30_m20: Interval<i32> = Interval {lb: -30, ub: -20};
 
   #[test]
   fn to_interval_id_test() {
