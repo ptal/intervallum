@@ -22,6 +22,8 @@ pub struct Interval<Bound> {
   ub: Bound
 }
 
+impl<Bound: Int> Eq for Interval<Bound> {}
+
 impl<Bound: Int> PartialEq<Interval<Bound>> for Interval<Bound>
 {
   fn eq(&self, other: &Interval<Bound>) -> bool {

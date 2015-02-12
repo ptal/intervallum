@@ -22,3 +22,4 @@
 #![feature(core)]
 
 pub mod interval;
+pub use interval::Interval;
