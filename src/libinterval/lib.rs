@@ -15,8 +15,6 @@
 
 #![crate_name = "interval"]
 #![unstable]
-// #![comment = "Interval Arithmetic Library"]
-// #![license = "Apache v2"]
 #![crate_type = "dylib"]
 
 #![feature(core)]

@@ -14,6 +14,7 @@
 
 use std::cmp::{min, max};
 use std::num::Int;
+use std::fmt::{Formatter, Display, Error};
 
 // Closed interval (endpoints included).
 #[derive(Debug, Copy, Clone)]
@@ -128,6 +129,16 @@ impl<Bound: Int> Interval<Bound>
 
   pub fn is_disjoint(self, i: Interval<Bound>) -> bool {
     self.is_empty() || i.is_empty() || self.lb > i.ub || i.lb > self.ub
+  }
+}
+
+impl<Bound: Display+Int> Display for Interval<Bound> {
+  fn fmt(&self, formatter: &mut Formatter) -> Result<(), Error> {
+    if self.is_empty() {
+      formatter.write_str("{}")
+    } else {
+      formatter.write_fmt(format_args!("[{}..{}]", self.lb, self.ub))
+    }
   }
 }
 
