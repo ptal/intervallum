@@ -13,14 +13,15 @@
 // limitations under the License.
 
 
-#![crate_name = "interval"]
-#![unstable]
-#![crate_type = "dylib"]
+pub trait Hull<RHS = Self> {
+  type Output;
+  fn hull(self, rhs: RHS) -> Self::Output;
+}
 
-#![feature(core)]
-
-pub mod interval;
-pub mod set_operations;
-pub mod interval_operations;
-
-pub use interval::Interval;
+pub trait BoundedInterval<Bound>
+{
+  fn new(lb: Bound, ub: Bound) -> Self;
+  fn singleton(x: Bound) -> Self;
+  fn lower(&self) -> Bound;
+  fn upper(&self) -> Bound;
+}

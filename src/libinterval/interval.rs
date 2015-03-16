@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use set_operations::*;
+use interval_operations::*;
+
 use std::cmp::{min, max};
 use std::num::Int;
 use std::fmt::{Formatter, Display, Error};
@@ -35,84 +38,117 @@ impl<Bound: Int> PartialEq<Interval<Bound>> for Interval<Bound>
 
 impl<Bound: Int> Interval<Bound>
 {
-  pub fn new(lb: Bound, ub: Bound) -> Interval<Bound> {
-    Interval { lb: lb, ub: ub }
-  }
-
-  pub fn lower(self) -> Bound { self.lb }
-
-  pub fn upper(self) -> Bound { self.ub }
-
-  pub fn empty() -> Interval<Bound> {
-    Interval::new(<Bound as Int>::one(), <Bound as Int>::zero())
-  }
-
-  pub fn singleton(x: Bound) -> Interval<Bound> {
-    Interval::new(x, x)
-  }
-
-  pub fn left_open(ub: Bound) -> Interval<Bound> {
+  fn min_lb(ub: Bound) -> Interval<Bound> {
     Interval::new(Int::min_value(), ub)
   }
 
-  pub fn right_open(lb: Bound) -> Interval<Bound> {
+  fn max_ub(lb: Bound) -> Interval<Bound> {
     Interval::new(lb, Int::max_value())
   }
+}
 
-  // FIX: Rust limitation, cannot specialize Interval for unsigned types.
-  //      Error: multiple declaration of size.
-  // Because `abs` is only defined for signed type, we "hardcode" it.
-  // TODO: Handle overflow.
-  pub fn size(self) -> Bound {
+impl<Bound: Int> BoundedInterval<Bound> for Interval<Bound>
+{
+  fn new(lb: Bound, ub: Bound) -> Interval<Bound> {
+    Interval { lb: lb, ub: ub }
+  }
+
+  fn lower(&self) -> Bound {
+    self.lb
+  }
+
+  fn upper(&self) -> Bound {
+    self.ub
+  }
+
+  fn singleton(x: Bound) -> Interval<Bound> {
+    Interval::new(x, x)
+  }
+}
+
+
+impl<Bound: Int> Empty for Interval<Bound>
+{
+  fn empty() -> Interval<Bound> {
+    Interval::new(<Bound as Int>::one(), <Bound as Int>::zero())
+  }
+}
+
+impl<Bound: Int> Cardinality for Interval<Bound>
+{
+  type Size = Bound;
+  fn size(&self) -> Bound {
     if self.is_empty() { <Bound as Int>::zero() }
     else {
-      let res = self.ub - self.lb + <Bound as Int>::one();
-      if res >= <Bound as Int>::zero() { res }
-      else { <Bound as Int>::zero() - res }
+      self.ub - self.lb + <Bound as Int>::one()
     }
   }
 
-  pub fn is_singleton(self) -> bool {
+  fn is_singleton(&self) -> bool {
     self.lb == self.ub
   }
 
-  pub fn is_empty(self) -> bool {
+  fn is_empty(&self) -> bool {
     self.lb > self.ub
   }
+}
 
-  pub fn has_member(self, x: Bound) -> bool {
-    x >= self.lb && x <= self.ub
+impl<Bound: Int> Disjoint for Interval<Bound>
+{
+  fn is_disjoint(&self, other: &Interval<Bound>) -> bool {
+       self.is_empty() || other.is_empty()
+    || self.lb > other.ub || other.lb > self.ub
   }
+}
 
-  pub fn is_subset_of(self, i: Interval<Bound>) -> bool {
-    if self.is_empty() { true }
-    else {
-      self.lb >= i.lb && self.ub <= i.ub
-    }
-  }
-
-  pub fn is_proper_subset_of(self, i: Interval<Bound>) -> bool {
-    self.is_subset_of(i) && self != i
-  }
-
-  pub fn intersection(self, i: Interval<Bound>) -> Interval<Bound> {
-    Interval::new(
-      max(self.lb, i.lb),
-      min(self.ub, i.ub)
-    )
-  }
-
-  pub fn join(self, i: Interval<Bound>) -> Interval<Bound> {
-    if self.is_empty() { i }
-    else if i.is_empty() { self }
+impl<Bound: Int> Hull for Interval<Bound>
+{
+  type Output = Interval<Bound>;
+  fn hull(self, other: Interval<Bound>) -> Interval<Bound> {
+    if self.is_empty() { other }
+    else if other.is_empty() { self }
     else {
       Interval::new(
-        min(self.lb, i.lb),
-        max(self.ub, i.ub)
+        min(self.lb, other.lb),
+        max(self.ub, other.ub)
       )
     }
   }
+}
 
+impl<Bound: Int> Membership<Bound> for Interval<Bound>
+{
+  fn contains(&self, value: &Bound) -> bool {
+    let value = *value;
+    value >= self.lb && value <= self.ub
+  }
+
+  fn is_subset(&self, other: &Interval<Bound>) -> bool {
+    if self.is_empty() { true }
+    else {
+      self.lb >= other.lb && self.ub <= other.ub
+    }
+  }
+
+  fn is_proper_subset(&self, other: &Interval<Bound>) -> bool {
+    self.is_subset(other) && self != other
+  }
+}
+
+impl<Bound: Int> Intersection for Interval<Bound>
+{
+  type Output = Interval<Bound>;
+  fn intersect(self, other: Interval<Bound>) -> Interval<Bound> {
+    Interval::new(
+      max(self.lb, other.lb),
+      min(self.ub, other.ub)
+    )
+  }
+}
+
+impl<Bound: Int> Difference for Interval<Bound>
+{
+  type Output = Interval<Bound>;
   // A - B is equivalent to A /\ ~B
   // However the complement operation doesn't make sense here
   // because it'd nearly always ends up to the whole integer interval.
@@ -121,18 +157,15 @@ impl<Bound: Int> Interval<Bound>
   //      A /\ [inf,B.lb-1]
   //    \/
   //      A /\ [B.ub+1, inf]
-  pub fn difference(self, i: Interval<Bound>) -> Interval<Bound> {
-    let left = self.intersection(Interval::left_open(i.lb - <Bound as Int>::one()));
-    let right = self.intersection(Interval::right_open(i.ub + <Bound as Int>::one()));
-    left.join(right)
-  }
-
-  pub fn is_disjoint(self, i: Interval<Bound>) -> bool {
-    self.is_empty() || i.is_empty() || self.lb > i.ub || i.lb > self.ub
+  fn difference(self, other: Interval<Bound>) -> Interval<Bound> {
+    let left = self.intersect(Interval::min_lb(other.lb - <Bound as Int>::one()));
+    let right = self.intersect(Interval::max_ub(other.ub + <Bound as Int>::one()));
+    left.hull(right)
   }
 }
 
-impl<Bound: Display+Int> Display for Interval<Bound> {
+impl<Bound: Display+Int> Display for Interval<Bound>
+{
   fn fmt(&self, formatter: &mut Formatter) -> Result<(), Error> {
     if self.is_empty() {
       formatter.write_str("{}")
@@ -173,6 +206,8 @@ impl<Bound: Int> ToInterval<Bound> for Bound {
 #[cfg(test)]
 mod tests {
   use super::*;
+  use set_operations::*;
+  use interval_operations::*;
 
   const empty: Interval<i32> = Interval {lb: 1, ub: 0};
   const invalid: Interval<i32> = Interval {lb: 10, ub: -10};
@@ -220,27 +255,27 @@ mod tests {
   }
 
   #[test]
-  fn member_test() {
-    assert!(i1_2.has_member(1));
-    assert!(i1_2.has_member(2));
-    assert!(!i1_2.has_member(0));
-    assert!(!i1_2.has_member(3));
+  fn contains_test() {
+    assert!(i1_2.contains(&1));
+    assert!(i1_2.contains(&2));
+    assert!(!i1_2.contains(&0));
+    assert!(!i1_2.contains(&3));
 
-    assert!(zero.has_member(0));
-    assert!(!zero.has_member(1));
+    assert!(zero.contains(&0));
+    assert!(!zero.contains(&1));
 
-    assert!(!empty.has_member(0));
-    assert!(!empty.has_member(1));
-    assert!(!empty.has_member(5));
-    assert!(!empty.has_member(-5));
+    assert!(!empty.contains(&0));
+    assert!(!empty.contains(&1));
+    assert!(!empty.contains(&5));
+    assert!(!empty.contains(&-5));
 
-    assert!(!invalid.has_member(0));
-    assert!(!invalid.has_member(-11));
-    assert!(!invalid.has_member(11));
+    assert!(!invalid.contains(&0));
+    assert!(!invalid.contains(&-11));
+    assert!(!invalid.contains(&11));
   }
 
   #[test]
-  fn is_subset_of_test() {
+  fn is_subset_test() {
     let cases = vec![
       (zero, zero,          true),
       (i1_2, i1_2,          true),
@@ -288,17 +323,17 @@ mod tests {
     ];
 
     for (x,y,r) in cases.into_iter() {
-      assert!(x.is_subset_of(y) == r, "{:?} is subset of {:?} is not equal to {:?}", x, y, r);
+      assert!(x.is_subset(&y) == r, "{:?} is subset of {:?} is not equal to {:?}", x, y, r);
     }
 
     for (x,y,(r1,r2)) in sym_cases.into_iter() {
-      assert!(x.is_subset_of(y) == r1, "{:?} is subset of {:?} is not equal to {:?}", x, y, r1);
-      assert!(y.is_subset_of(x) == r2, "{:?} is subset of {:?} is not equal to {:?}", y, x, r2);
+      assert!(x.is_subset(&y) == r1, "{:?} is subset of {:?} is not equal to {:?}", x, y, r1);
+      assert!(y.is_subset(&x) == r2, "{:?} is subset of {:?} is not equal to {:?}", y, x, r2);
     }
   }
 
   #[test]
-  fn is_proper_subset_of_test() {
+  fn is_proper_subset_test() {
     let cases = vec![
       (zero, zero,          false),
       (i1_2, i1_2,          false),
@@ -346,12 +381,12 @@ mod tests {
     ];
 
     for (x,y,r) in cases.into_iter() {
-      assert!(x.is_proper_subset_of(y) == r, "{:?} is proper subset of {:?} is not equal to {:?}", x, y, r);
+      assert!(x.is_proper_subset(&y) == r, "{:?} is proper subset of {:?} is not equal to {:?}", x, y, r);
     }
 
     for (x,y,(r1,r2)) in sym_cases.into_iter() {
-      assert!(x.is_proper_subset_of(y) == r1, "{:?} is proper subset of {:?} is not equal to {:?}", x, y, r1);
-      assert!(y.is_proper_subset_of(x) == r2, "{:?} is proper subset of {:?} is not equal to {:?}", y, x, r2);
+      assert!(x.is_proper_subset(&y) == r1, "{:?} is proper subset of {:?} is not equal to {:?}", x, y, r1);
+      assert!(y.is_proper_subset(&x) == r2, "{:?} is proper subset of {:?} is not equal to {:?}", y, x, r2);
     }
   }
 
@@ -404,12 +439,12 @@ mod tests {
     ];
 
     for (x,y,r) in cases.into_iter() {
-      assert!(x.intersection(y) == r, "{:?} intersection {:?} is not equal to {:?}", x, y, r);
+      assert!(x.intersect(y) == r, "{:?} intersection {:?} is not equal to {:?}", x, y, r);
     }
 
     for (x,y,r) in sym_cases.into_iter() {
-      assert!(x.intersection(y) == r, "{:?} intersection {:?} is not equal to {:?}", x, y, r);
-      assert!(y.intersection(x) == r, "{:?} intersection {:?} is not equal to {:?}", y, x, r);
+      assert!(x.intersect(y) == r, "{:?} intersection {:?} is not equal to {:?}", x, y, r);
+      assert!(y.intersect(x) == r, "{:?} intersection {:?} is not equal to {:?}", y, x, r);
     }
   }
 
@@ -462,12 +497,12 @@ mod tests {
     ];
 
     for (x,y,r) in cases.into_iter() {
-      assert!(x.join(y) == r, "{:?} join {:?} is not equal to {:?}", x, y, r);
+      assert!(x.hull(y) == r, "{:?} hull {:?} is not equal to {:?}", x, y, r);
     }
 
     for (x,y,r) in sym_cases.into_iter() {
-      assert!(x.join(y) == r, "{:?} join {:?} is not equal to {:?}", x, y, r);
-      assert!(y.join(x) == r, "{:?} join {:?} is not equal to {:?}", y, x, r);
+      assert!(x.hull(y) == r, "{:?} hull {:?} is not equal to {:?}", x, y, r);
+      assert!(y.hull(x) == r, "{:?} hull {:?} is not equal to {:?}", y, x, r);
     }
   }
 
@@ -520,12 +555,12 @@ mod tests {
     ];
 
     for (x,y,r) in cases.into_iter() {
-      assert!(x.is_disjoint(y) == r, "{:?} is disjoint of {:?} is not equal to {:?}", x, y, r);
+      assert!(x.is_disjoint(&y) == r, "{:?} is disjoint of {:?} is not equal to {:?}", x, y, r);
     }
 
     for (x,y,r) in sym_cases.into_iter() {
-      assert!(x.is_disjoint(y) == r, "{:?} is disjoint of {:?} is not equal to {:?}", x, y, r);
-      assert!(y.is_disjoint(x) == r, "{:?} is disjoint of {:?} is not equal to {:?}", y, x, r);
+      assert!(x.is_disjoint(&y) == r, "{:?} is disjoint of {:?} is not equal to {:?}", x, y, r);
+      assert!(y.is_disjoint(&x) == r, "{:?} is disjoint of {:?} is not equal to {:?}", y, x, r);
     }
   }
 

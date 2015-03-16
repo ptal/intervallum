@@ -1,7 +1,7 @@
 Interval Arithmetic Library
 ===========================
 
-This library is usable and tested, however it only works on integers (`int`) and only a few operations are implemented.
+This library is usable and tested, however it only works on integers (`i8`-`u64`, `u8`-`u64`, `usize` and `isize`) and only a few operations are implemented.
 
 See the github issues to see the work remaining and feel free to send your PR.
 
