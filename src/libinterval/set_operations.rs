@@ -42,12 +42,6 @@ pub trait SymmetricDifference<RHS = Self> {
   fn symmetric_difference_of(self, rhs: RHS) -> Self::Output;
 }
 
-pub trait Membership<Item, RHS = Self> {
-  fn contains(&self, value: &Item) -> bool;
-  fn is_subset(&self, rhs: &RHS) -> bool;
-  fn is_proper_subset(&self, rhs: &RHS) -> bool;
-}
-
 pub trait Disjoint<RHS = Self> {
   fn is_disjoint(&self, rhs: &RHS) -> bool;
 }
@@ -67,6 +61,46 @@ pub trait Cardinality {
 
 pub trait Empty {
   fn empty() -> Self;
+}
+
+pub trait Subset<RHS = Self> {
+  fn is_subset(&self, rhs: &RHS) -> bool;
+  fn is_proper_subset(&self, rhs: &RHS) -> bool;
+}
+
+pub trait Membership<Item> {
+  fn contains_value(&self, value: &Item) -> bool;
+}
+
+impl<T> Membership<T> for BTreeSet<T>
+where T: Ord
+{
+  fn contains_value(&self, value: &T) -> bool {
+    self.contains(value)
+  }
+}
+
+impl Membership<usize> for BitSet
+{
+  fn contains_value(&self, value: &usize) -> bool {
+    self.contains(value)
+  }
+}
+
+impl<T, S> Membership<T> for HashSet<T, S>
+where T: Eq + Hash,
+      S: HashState
+{
+  fn contains_value(&self, value: &T) -> bool {
+    self.contains(value)
+  }
+}
+
+impl<E: CLike> Membership<E> for EnumSet<E>
+{
+  fn contains_value(&self, value: &E) -> bool {
+    self.contains(value)
+  }
 }
 
 macro_rules! set_op_impl

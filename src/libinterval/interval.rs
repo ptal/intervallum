@@ -118,11 +118,14 @@ impl<Bound: Int> Hull for Interval<Bound>
 
 impl<Bound: Int> Membership<Bound> for Interval<Bound>
 {
-  fn contains(&self, value: &Bound) -> bool {
+  fn contains_value(&self, value: &Bound) -> bool {
     let value = *value;
     value >= self.lb && value <= self.ub
   }
+}
 
+impl<Bound: Int> Subset for Interval<Bound>
+{
   fn is_subset(&self, other: &Interval<Bound>) -> bool {
     if self.is_empty() { true }
     else {
@@ -256,22 +259,22 @@ mod tests {
 
   #[test]
   fn contains_test() {
-    assert!(i1_2.contains(&1));
-    assert!(i1_2.contains(&2));
-    assert!(!i1_2.contains(&0));
-    assert!(!i1_2.contains(&3));
+    assert!(i1_2.contains_value(&1));
+    assert!(i1_2.contains_value(&2));
+    assert!(!i1_2.contains_value(&0));
+    assert!(!i1_2.contains_value(&3));
 
-    assert!(zero.contains(&0));
-    assert!(!zero.contains(&1));
+    assert!(zero.contains_value(&0));
+    assert!(!zero.contains_value(&1));
 
-    assert!(!empty.contains(&0));
-    assert!(!empty.contains(&1));
-    assert!(!empty.contains(&5));
-    assert!(!empty.contains(&-5));
+    assert!(!empty.contains_value(&0));
+    assert!(!empty.contains_value(&1));
+    assert!(!empty.contains_value(&5));
+    assert!(!empty.contains_value(&-5));
 
-    assert!(!invalid.contains(&0));
-    assert!(!invalid.contains(&-11));
-    assert!(!invalid.contains(&11));
+    assert!(!invalid.contains_value(&0));
+    assert!(!invalid.contains_value(&-11));
+    assert!(!invalid.contains_value(&11));
   }
 
   #[test]
