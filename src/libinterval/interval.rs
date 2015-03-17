@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use ncollections::ops::*;
-use interval_operations::*;
+use ops::*;
 
 use std::cmp::{min, max};
 use std::num::Int;
@@ -213,7 +213,7 @@ impl<Bound: Int> ToInterval<Bound> for Bound {
 mod tests {
   use super::*;
   use ncollections::ops::*;
-  use interval_operations::*;
+  use ops::*;
 
   const empty: Interval<i32> = Interval {lb: 1, ub: 0};
   const invalid: Interval<i32> = Interval {lb: 10, ub: -10};

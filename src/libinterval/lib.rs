@@ -22,8 +22,7 @@
 extern crate collections;
 
 pub mod interval;
-pub mod set_operations;
-pub mod interval_operations;
+pub mod ops;
 pub mod ncollections;
 
 pub use interval::Interval;
