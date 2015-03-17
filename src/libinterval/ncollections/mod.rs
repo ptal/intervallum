@@ -12,18 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+pub mod hash_set;
+pub mod btree_set;
+pub mod enum_set;
+pub mod bit_set;
+pub mod ops;
 
-#![crate_name = "interval"]
-#![unstable]
-#![crate_type = "dylib"]
-
-#![feature(core, collections, std_misc)]
-
-extern crate collections;
-
-pub mod interval;
-pub mod set_operations;
-pub mod interval_operations;
-pub mod ncollections;
-
-pub use interval::Interval;
+pub use ncollections::hash_set::HashSet;
+pub use ncollections::btree_set::BTreeSet;
+pub use ncollections::enum_set::EnumSet;
+pub use ncollections::bit_set::BitSet;

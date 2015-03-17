@@ -12,18 +12,33 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::collections::BTreeSet as StdBTreeSet;
+use std::ops::{Deref, DerefMut};
 
-#![crate_name = "interval"]
-#![unstable]
-#![crate_type = "dylib"]
+pub struct BTreeSet<T>
+{
+  ts: StdBTreeSet<T>
+}
 
-#![feature(core, collections, std_misc)]
+impl<T: Ord> BTreeSet<T>
+{
+  pub fn wrap(ts: StdBTreeSet<T>) -> BTreeSet<T> {
+    BTreeSet{ts: ts}
+  }
+}
 
-extern crate collections;
+impl<T> Deref for BTreeSet<T>
+{
+  type Target = StdBTreeSet<T>;
 
-pub mod interval;
-pub mod set_operations;
-pub mod interval_operations;
-pub mod ncollections;
+  fn deref<'a>(&'a self) -> &'a StdBTreeSet<T> {
+    &self.ts
+  }
+}
 
-pub use interval::Interval;
+impl<T> DerefMut for BTreeSet<T>
+{
+  fn deref_mut<'a>(&'a mut self) -> &'a mut StdBTreeSet<T> {
+    &mut self.ts
+  }
+}

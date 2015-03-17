@@ -13,17 +13,34 @@
 // limitations under the License.
 
 
-#![crate_name = "interval"]
-#![unstable]
-#![crate_type = "dylib"]
+use collections::enum_set::EnumSet as StdEnumSet;
+use collections::enum_set::CLike;
+use std::ops::{Deref, DerefMut};
 
-#![feature(core, collections, std_misc)]
+pub struct EnumSet<T>
+{
+  es: StdEnumSet<T>
+}
 
-extern crate collections;
+impl<E: CLike> EnumSet<E>
+{
+  pub fn wrap(es: StdEnumSet<E>) -> EnumSet<E> {
+    EnumSet{es: es}
+  }
+}
 
-pub mod interval;
-pub mod set_operations;
-pub mod interval_operations;
-pub mod ncollections;
+impl<T> Deref for EnumSet<T>
+{
+  type Target = StdEnumSet<T>;
 
-pub use interval::Interval;
+  fn deref<'a>(&'a self) -> &'a StdEnumSet<T> {
+    &self.es
+  }
+}
+
+impl<T> DerefMut for EnumSet<T>
+{
+  fn deref_mut<'a>(&'a mut self) -> &'a mut StdEnumSet<T> {
+    &mut self.es
+  }
+}

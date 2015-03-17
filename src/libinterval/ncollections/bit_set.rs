@@ -12,18 +12,32 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::collections::BitSet as StdBitSet;
+use std::ops::{Deref, DerefMut};
 
-#![crate_name = "interval"]
-#![unstable]
-#![crate_type = "dylib"]
+pub struct BitSet
+{
+  bs: StdBitSet
+}
 
-#![feature(core, collections, std_misc)]
+impl BitSet {
+  pub fn wrap(bs: StdBitSet) -> BitSet {
+    BitSet{bs: bs}
+  }
+}
 
-extern crate collections;
+impl Deref for BitSet
+{
+  type Target = StdBitSet;
 
-pub mod interval;
-pub mod set_operations;
-pub mod interval_operations;
-pub mod ncollections;
+  fn deref<'a>(&'a self) -> &'a StdBitSet {
+    &self.bs
+  }
+}
 
-pub use interval::Interval;
+impl DerefMut for BitSet
+{
+  fn deref_mut<'a>(&'a mut self) -> &'a mut StdBitSet {
+    &mut self.bs
+  }
+}

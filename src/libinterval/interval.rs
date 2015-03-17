@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use set_operations::*;
+use ncollections::ops::*;
 use interval_operations::*;
 
 use std::cmp::{min, max};
@@ -116,9 +116,9 @@ impl<Bound: Int> Hull for Interval<Bound>
   }
 }
 
-impl<Bound: Int> Membership<Bound> for Interval<Bound>
+impl<Bound: Int> Contains<Bound> for Interval<Bound>
 {
-  fn contains_value(&self, value: &Bound) -> bool {
+  fn contains(&self, value: &Bound) -> bool {
     let value = *value;
     value >= self.lb && value <= self.ub
   }
@@ -132,7 +132,10 @@ impl<Bound: Int> Subset for Interval<Bound>
       self.lb >= other.lb && self.ub <= other.ub
     }
   }
+}
 
+impl<Bound: Int> ProperSubset for Interval<Bound>
+{
   fn is_proper_subset(&self, other: &Interval<Bound>) -> bool {
     self.is_subset(other) && self != other
   }
@@ -141,7 +144,7 @@ impl<Bound: Int> Subset for Interval<Bound>
 impl<Bound: Int> Intersection for Interval<Bound>
 {
   type Output = Interval<Bound>;
-  fn intersection_of(self, other: Interval<Bound>) -> Interval<Bound> {
+  fn intersection(self, other: Interval<Bound>) -> Interval<Bound> {
     Interval::new(
       max(self.lb, other.lb),
       min(self.ub, other.ub)
@@ -160,9 +163,9 @@ impl<Bound: Int> Difference for Interval<Bound>
   //      A /\ [inf,B.lb-1]
   //    \/
   //      A /\ [B.ub+1, inf]
-  fn difference_of(self, other: Interval<Bound>) -> Interval<Bound> {
-    let left = self.intersection_of(Interval::min_lb(other.lb - <Bound as Int>::one()));
-    let right = self.intersection_of(Interval::max_ub(other.ub + <Bound as Int>::one()));
+  fn difference(self, other: Interval<Bound>) -> Interval<Bound> {
+    let left = self.intersection(Interval::min_lb(other.lb - <Bound as Int>::one()));
+    let right = self.intersection(Interval::max_ub(other.ub + <Bound as Int>::one()));
     left.hull(right)
   }
 }
@@ -209,7 +212,7 @@ impl<Bound: Int> ToInterval<Bound> for Bound {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use set_operations::*;
+  use ncollections::ops::*;
   use interval_operations::*;
 
   const empty: Interval<i32> = Interval {lb: 1, ub: 0};
@@ -259,22 +262,22 @@ mod tests {
 
   #[test]
   fn contains_test() {
-    assert!(i1_2.contains_value(&1));
-    assert!(i1_2.contains_value(&2));
-    assert!(!i1_2.contains_value(&0));
-    assert!(!i1_2.contains_value(&3));
+    assert!(i1_2.contains(&1));
+    assert!(i1_2.contains(&2));
+    assert!(!i1_2.contains(&0));
+    assert!(!i1_2.contains(&3));
 
-    assert!(zero.contains_value(&0));
-    assert!(!zero.contains_value(&1));
+    assert!(zero.contains(&0));
+    assert!(!zero.contains(&1));
 
-    assert!(!empty.contains_value(&0));
-    assert!(!empty.contains_value(&1));
-    assert!(!empty.contains_value(&5));
-    assert!(!empty.contains_value(&-5));
+    assert!(!empty.contains(&0));
+    assert!(!empty.contains(&1));
+    assert!(!empty.contains(&5));
+    assert!(!empty.contains(&-5));
 
-    assert!(!invalid.contains_value(&0));
-    assert!(!invalid.contains_value(&-11));
-    assert!(!invalid.contains_value(&11));
+    assert!(!invalid.contains(&0));
+    assert!(!invalid.contains(&-11));
+    assert!(!invalid.contains(&11));
   }
 
   #[test]
@@ -442,12 +445,12 @@ mod tests {
     ];
 
     for (x,y,r) in cases.into_iter() {
-      assert!(x.intersection_of(y) == r, "{:?} intersection {:?} is not equal to {:?}", x, y, r);
+      assert!(x.intersection(y) == r, "{:?} intersection {:?} is not equal to {:?}", x, y, r);
     }
 
     for (x,y,r) in sym_cases.into_iter() {
-      assert!(x.intersection_of(y) == r, "{:?} intersection {:?} is not equal to {:?}", x, y, r);
-      assert!(y.intersection_of(x) == r, "{:?} intersection {:?} is not equal to {:?}", y, x, r);
+      assert!(x.intersection(y) == r, "{:?} intersection {:?} is not equal to {:?}", x, y, r);
+      assert!(y.intersection(x) == r, "{:?} intersection {:?} is not equal to {:?}", y, x, r);
     }
   }
 
@@ -616,12 +619,12 @@ mod tests {
     ];
 
     for (x,y,r) in cases.into_iter() {
-      assert!(x.difference_of(y) == r, "{:?} diff {:?} is not equal to {:?}", x, y, r);
+      assert!(x.difference(y) == r, "{:?} diff {:?} is not equal to {:?}", x, y, r);
     }
 
     for (x,y,(r1,r2)) in sym_cases.into_iter() {
-      assert!(x.difference_of(y) == r1, "{:?} diff {:?} is not equal to {:?}", x, y, r1);
-      assert!(y.difference_of(x) == r2, "{:?} diff {:?} is not equal to {:?}", y, x, r2);
+      assert!(x.difference(y) == r1, "{:?} diff {:?} is not equal to {:?}", x, y, r1);
+      assert!(y.difference(x) == r2, "{:?} diff {:?} is not equal to {:?}", y, x, r2);
     }
   }
 
