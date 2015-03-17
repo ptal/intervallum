@@ -138,7 +138,7 @@ impl<Bound: Int> Membership<Bound> for Interval<Bound>
 impl<Bound: Int> Intersection for Interval<Bound>
 {
   type Output = Interval<Bound>;
-  fn intersect(self, other: Interval<Bound>) -> Interval<Bound> {
+  fn intersection_of(self, other: Interval<Bound>) -> Interval<Bound> {
     Interval::new(
       max(self.lb, other.lb),
       min(self.ub, other.ub)
@@ -157,9 +157,9 @@ impl<Bound: Int> Difference for Interval<Bound>
   //      A /\ [inf,B.lb-1]
   //    \/
   //      A /\ [B.ub+1, inf]
-  fn difference(self, other: Interval<Bound>) -> Interval<Bound> {
-    let left = self.intersect(Interval::min_lb(other.lb - <Bound as Int>::one()));
-    let right = self.intersect(Interval::max_ub(other.ub + <Bound as Int>::one()));
+  fn difference_of(self, other: Interval<Bound>) -> Interval<Bound> {
+    let left = self.intersection_of(Interval::min_lb(other.lb - <Bound as Int>::one()));
+    let right = self.intersection_of(Interval::max_ub(other.ub + <Bound as Int>::one()));
     left.hull(right)
   }
 }
@@ -439,12 +439,12 @@ mod tests {
     ];
 
     for (x,y,r) in cases.into_iter() {
-      assert!(x.intersect(y) == r, "{:?} intersection {:?} is not equal to {:?}", x, y, r);
+      assert!(x.intersection_of(y) == r, "{:?} intersection {:?} is not equal to {:?}", x, y, r);
     }
 
     for (x,y,r) in sym_cases.into_iter() {
-      assert!(x.intersect(y) == r, "{:?} intersection {:?} is not equal to {:?}", x, y, r);
-      assert!(y.intersect(x) == r, "{:?} intersection {:?} is not equal to {:?}", y, x, r);
+      assert!(x.intersection_of(y) == r, "{:?} intersection {:?} is not equal to {:?}", x, y, r);
+      assert!(y.intersection_of(x) == r, "{:?} intersection {:?} is not equal to {:?}", y, x, r);
     }
   }
 
@@ -613,12 +613,12 @@ mod tests {
     ];
 
     for (x,y,r) in cases.into_iter() {
-      assert!(x.difference(y) == r, "{:?} diff {:?} is not equal to {:?}", x, y, r);
+      assert!(x.difference_of(y) == r, "{:?} diff {:?} is not equal to {:?}", x, y, r);
     }
 
     for (x,y,(r1,r2)) in sym_cases.into_iter() {
-      assert!(x.difference(y) == r1, "{:?} diff {:?} is not equal to {:?}", x, y, r1);
-      assert!(y.difference(x) == r2, "{:?} diff {:?} is not equal to {:?}", y, x, r2);
+      assert!(x.difference_of(y) == r1, "{:?} diff {:?} is not equal to {:?}", x, y, r1);
+      assert!(y.difference_of(x) == r2, "{:?} diff {:?} is not equal to {:?}", y, x, r2);
     }
   }
 

@@ -13,20 +13,33 @@
 // limitations under the License.
 
 use std::num::Int;
+use std::collections::BTreeSet;
+use std::collections::BitSet;
+use std::collections::HashSet;
+use std::collections::hash_state::HashState;
+use collections::enum_set::{CLike, EnumSet};
+use std::hash::Hash;
+use std::iter::FromIterator;
+use std::default::Default;
 
 pub trait Intersection<RHS = Self> {
   type Output;
-  fn intersect(self, rhs: RHS) -> Self::Output;
+  fn intersection_of(self, rhs: RHS) -> Self::Output;
 }
 
 pub trait Union<RHS = Self> {
   type Output;
-  fn union(self, rhs: RHS) -> Self::Output;
+  fn union_of(self, rhs: RHS) -> Self::Output;
 }
 
 pub trait Difference<RHS = Self> {
   type Output;
-  fn difference(self, rhs: RHS) -> Self::Output;
+  fn difference_of(self, rhs: RHS) -> Self::Output;
+}
+
+pub trait SymmetricDifference<RHS = Self> {
+  type Output;
+  fn symmetric_difference_of(self, rhs: RHS) -> Self::Output;
 }
 
 pub trait Membership<Item, RHS = Self> {
@@ -54,4 +67,67 @@ pub trait Cardinality {
 
 pub trait Empty {
   fn empty() -> Self;
+}
+
+macro_rules! set_op_impl
+{
+  ( $( $t: ident, $m:ident, $m_of:ident, $v:ident );* ) =>
+  {$(
+    impl<T> $t for BTreeSet<T>
+    where T: Ord+Clone
+    {
+      type Output = BTreeSet<T>;
+
+      fn $m_of(self, other: BTreeSet<T>) -> BTreeSet<T> {
+        FromIterator::from_iter(self.$m(&other).cloned())
+      }
+    }
+
+    impl $t for BitSet {
+      type Output = BitSet;
+
+      fn $m_of(mut self, other: BitSet) -> BitSet {
+        self.$v(&other);
+        self
+      }
+    }
+
+    impl<T, S> $t for HashSet<T, S>
+    where T: Eq + Hash + Clone,
+          S: HashState + Default
+    {
+      type Output = HashSet<T, S>;
+
+      fn $m_of(self, other: HashSet<T, S>) -> HashSet<T, S> {
+        FromIterator::from_iter(self.$m(&other).cloned())
+      }
+    }
+  )*}
+}
+
+macro_rules! set_enum_op_impl
+{
+  ( $( $t: ident, $m:ident, $m_of:ident, $v:ident );* ) =>
+  {$(
+    set_op_impl! {$t, $m, $m_of, $v}
+
+    impl<E: CLike> $t for EnumSet<E>
+    {
+      type Output = EnumSet<E>;
+
+      fn $m_of(self, other: EnumSet<E>) -> EnumSet<E> {
+        self.$m(other)
+      }
+    }
+  )*}
+}
+
+set_enum_op_impl! {
+  Intersection, intersection, intersection_of, intersect_with;
+  Union, union, union_of, union_with
+}
+
+set_op_impl! {
+  Difference, difference, difference_of, difference_with;
+  SymmetricDifference, symmetric_difference, symmetric_difference_of, symmetric_difference_with
 }

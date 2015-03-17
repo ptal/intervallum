@@ -17,7 +17,9 @@
 #![unstable]
 #![crate_type = "dylib"]
 
-#![feature(core)]
+#![feature(core, collections, std_misc)]
+
+extern crate collections;
 
 pub mod interval;
 pub mod set_operations;
