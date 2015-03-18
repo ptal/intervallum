@@ -167,8 +167,12 @@ pub trait Cardinality {
   }
 }
 
-// Empty set
+// Construction
 
 pub trait Empty {
   fn empty() -> Self;
+}
+
+pub trait Singleton<Item> {
+  fn singleton(value: Item) -> Self;
 }

@@ -60,7 +60,10 @@ impl<Bound: Int> BoundedInterval<Bound> for Interval<Bound>
   fn upper(&self) -> Bound {
     self.ub
   }
+}
 
+impl <Bound: Int> Singleton<Bound> for Interval<Bound>
+{
   fn singleton(x: Bound) -> Interval<Bound> {
     Interval::new(x, x)
   }
