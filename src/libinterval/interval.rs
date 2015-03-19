@@ -47,11 +47,16 @@ impl<Bound: Int> Interval<Bound>
   }
 }
 
-impl<Bound: Int> Bounded<Bound> for Interval<Bound>
+impl<Bound: Int> Range<Bound> for Interval<Bound>
 {
   fn new(lb: Bound, ub: Bound) -> Interval<Bound> {
     Interval { lb: lb, ub: ub }
   }
+}
+
+impl<Bound: Int> Bounded for Interval<Bound>
+{
+  type Bound = Bound;
 
   fn lower(&self) -> Bound {
     self.lb

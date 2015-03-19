@@ -177,9 +177,9 @@ pub trait Singleton<Item> {
   fn singleton(value: Item) -> Self;
 }
 
-pub trait Bounded<Bound>
+pub trait Bounded
 {
-  fn new(lb: Bound, ub: Bound) -> Self;
-  fn lower(&self) -> Bound;
-  fn upper(&self) -> Bound;
+  type Bound: PartialOrd;
+  fn lower(&self) -> Self::Bound;
+  fn upper(&self) -> Self::Bound;
 }

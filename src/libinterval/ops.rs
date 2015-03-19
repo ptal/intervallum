@@ -12,7 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::cmp::Ord;
+
 pub trait Hull<RHS = Self> {
   type Output;
   fn hull(self, rhs: RHS) -> Self::Output;
+}
+
+pub trait Range<Bound: Ord> {
+  fn new(lb: Bound, ub: Bound) -> Self;
 }
