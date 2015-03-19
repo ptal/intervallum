@@ -47,7 +47,7 @@ impl<Bound: Int> Interval<Bound>
   }
 }
 
-impl<Bound: Int> BoundedInterval<Bound> for Interval<Bound>
+impl<Bound: Int> Bounded<Bound> for Interval<Bound>
 {
   fn new(lb: Bound, ub: Bound) -> Interval<Bound> {
     Interval { lb: lb, ub: ub }

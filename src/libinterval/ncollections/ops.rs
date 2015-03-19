@@ -176,3 +176,10 @@ pub trait Empty {
 pub trait Singleton<Item> {
   fn singleton(value: Item) -> Self;
 }
+
+pub trait Bounded<Bound>
+{
+  fn new(lb: Bound, ub: Bound) -> Self;
+  fn lower(&self) -> Bound;
+  fn upper(&self) -> Bound;
+}
