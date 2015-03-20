@@ -178,6 +178,26 @@ impl<Bound: Int> Difference for Interval<Bound>
   }
 }
 
+impl<Bound: Int> ShrinkLeft<Bound> for Interval<Bound>
+{
+  fn shrink_left(mut self, lb: Bound) -> Interval<Bound> {
+    if lb > self.lb {
+      self.lb = lb;
+    }
+    self
+  }
+}
+
+impl<Bound: Int> ShrinkRight<Bound> for Interval<Bound>
+{
+  fn shrink_right(mut self, ub: Bound) -> Interval<Bound> {
+    if ub < self.ub {
+      self.ub = ub;
+    }
+    self
+  }
+}
+
 impl<Bound: Display+Int> Display for Interval<Bound>
 {
   fn fmt(&self, formatter: &mut Formatter) -> Result<(), Error> {
@@ -227,9 +247,12 @@ mod tests {
   const invalid: Interval<i32> = Interval {lb: 10, ub: -10};
   const zero: Interval<i32> = Interval {lb: 0, ub: 0};
   const one: Interval<i32> = Interval {lb: 1, ub: 1};
+  const ten: Interval<i32> = Interval {lb: 10, ub: 10};
 
   const i1_2: Interval<i32> = Interval {lb: 1, ub: 2};
   const i0_10: Interval<i32> = Interval {lb: 0, ub: 10};
+  const i1_10: Interval<i32> = Interval {lb: 1, ub: 10};
+  const i0_9: Interval<i32> = Interval {lb: 0, ub: 9};
   const i0_15: Interval<i32> = Interval {lb: 0, ub: 15};
   const im5_10: Interval<i32> = Interval {lb: -5, ub: 10};
   const im5_m1: Interval<i32> = Interval {lb: -5, ub: -1};
@@ -636,4 +659,35 @@ mod tests {
     }
   }
 
+  #[test]
+  fn shrink_left_test() {
+    let cases = vec![
+      (i0_10, -5, i0_10),
+      (i0_10, 0, i0_10),
+      (i0_10, 1, i1_10),
+      (i0_10, 5, i5_10),
+      (i0_10, 10, ten),
+      (i0_10, 11, empty),
+      (i0_10, 100, empty)
+    ];
+    for (x,y,r) in cases.into_iter() {
+      assert!(x.shrink_left(y) == r, "{:?} shrink_left {:?} is not equal to {:?}", x, y, r);
+    }
+  }
+
+  #[test]
+  fn shrink_right_test() {
+    let cases = vec![
+      (i0_10, 15, i0_10),
+      (i0_10, 10, i0_10),
+      (i0_10, 9, i0_9),
+      (i0_10, 5, i0_5),
+      (i0_10, 0, zero),
+      (i0_10, -1, empty),
+      (i0_10, -100, empty)
+    ];
+    for (x,y,r) in cases.into_iter() {
+      assert!(x.shrink_right(y) == r, "{:?} shrink_right {:?} is not equal to {:?}", x, y, r);
+    }
+  }
 }

@@ -183,3 +183,13 @@ pub trait Bounded
   fn lower(&self) -> Self::Bound;
   fn upper(&self) -> Self::Bound;
 }
+
+pub trait ShrinkLeft<Bound>
+{
+  fn shrink_left(self, lb: Bound) -> Self;
+}
+
+pub trait ShrinkRight<Bound>
+{
+  fn shrink_right(self, ub: Bound) -> Self;
+}
