@@ -78,7 +78,7 @@ impl <Bound: Int> Singleton<Bound> for Interval<Bound>
 impl<Bound: Int> Empty for Interval<Bound>
 {
   fn empty() -> Interval<Bound> {
-    Interval::new(<Bound as Int>::one(), <Bound as Int>::zero())
+    Interval::new(Bound::one(), Bound::zero())
   }
 }
 
@@ -86,9 +86,9 @@ impl<Bound: Int> Cardinality for Interval<Bound>
 {
   type Size = Bound;
   fn size(&self) -> Bound {
-    if self.is_empty() { <Bound as Int>::zero() }
+    if self.is_empty() { Bound::zero() }
     else {
-      self.ub - self.lb + <Bound as Int>::one()
+      self.ub - self.lb + Bound::one()
     }
   }
 
@@ -160,6 +160,19 @@ impl<Bound: Int> Intersection for Interval<Bound>
   }
 }
 
+impl<Bound: Int> Intersection<Bound> for Interval<Bound>
+{
+  type Output = Interval<Bound>;
+  fn intersection(self, value: Bound) -> Interval<Bound> {
+    if self.contains(&value) {
+      Interval::singleton(value)
+    }
+    else {
+      Interval::empty()
+    }
+  }
+}
+
 impl<Bound: Int> Difference for Interval<Bound>
 {
   type Output = Interval<Bound>;
@@ -172,9 +185,23 @@ impl<Bound: Int> Difference for Interval<Bound>
   //    \/
   //      A /\ [B.ub+1, inf]
   fn difference(self, other: Interval<Bound>) -> Interval<Bound> {
-    let left = self.intersection(Interval::min_lb(other.lb - <Bound as Int>::one()));
-    let right = self.intersection(Interval::max_ub(other.ub + <Bound as Int>::one()));
+    let left = self.intersection(Interval::min_lb(other.lb - Bound::one()));
+    let right = self.intersection(Interval::max_ub(other.ub + Bound::one()));
     left.hull(right)
+  }
+}
+
+impl<Bound: Int> Difference<Bound> for Interval<Bound>
+{
+  type Output = Interval<Bound>;
+  fn difference(mut self, value: Bound) -> Interval<Bound> {
+    if value == self.lb {
+      self.lb = self.lb + Bound::one();
+    }
+    else if value == self.ub {
+      self.ub = self.ub - Bound::one();
+    }
+    self
   }
 }
 
@@ -486,6 +513,22 @@ mod tests {
   }
 
   #[test]
+  fn intersection_value_test() {
+    let cases = vec![
+      (i0_10, 0, zero),
+      (i0_10, 10, ten),
+      (i0_10, 1, one),
+      (i0_10, 11, empty),
+      (i0_10, -1, empty),
+      (one, 1, one),
+      (one, 0, empty)
+    ];
+    for (x,y,r) in cases.into_iter() {
+      assert!(x.intersection(y) == r, "{:?} intersection {:?} is not equal to {:?}", x, y, r);
+    }
+  }
+
+  #[test]
   fn hull_test() {
     let cases = vec![
       (zero, zero,          zero),
@@ -650,12 +693,29 @@ mod tests {
     ];
 
     for (x,y,r) in cases.into_iter() {
-      assert!(x.difference(y) == r, "{:?} diff {:?} is not equal to {:?}", x, y, r);
+      assert!(x.difference(y) == r, "{:?} difference {:?} is not equal to {:?}", x, y, r);
     }
 
     for (x,y,(r1,r2)) in sym_cases.into_iter() {
-      assert!(x.difference(y) == r1, "{:?} diff {:?} is not equal to {:?}", x, y, r1);
-      assert!(y.difference(x) == r2, "{:?} diff {:?} is not equal to {:?}", y, x, r2);
+      assert!(x.difference(y) == r1, "{:?} difference {:?} is not equal to {:?}", x, y, r1);
+      assert!(y.difference(x) == r2, "{:?} difference {:?} is not equal to {:?}", y, x, r2);
+    }
+  }
+
+  #[test]
+  fn difference_value_test() {
+    let cases = vec![
+      (i0_10, 0, i1_10),
+      (i0_10, 10, i0_9),
+      (i0_10, 1, i0_10),
+      (i0_10, 9, i0_10),
+      (i0_10, -1, i0_10),
+      (i0_10, 11, i0_10),
+      (i0_10, 100, i0_10),
+      (one, 1, empty)
+    ];
+    for (x,y,r) in cases.into_iter() {
+      assert!(x.difference(y) == r, "{:?} difference {:?} is not equal to {:?}", x, y, r);
     }
   }
 
@@ -668,7 +728,8 @@ mod tests {
       (i0_10, 5, i5_10),
       (i0_10, 10, ten),
       (i0_10, 11, empty),
-      (i0_10, 100, empty)
+      (i0_10, 100, empty),
+      (empty, 0, empty)
     ];
     for (x,y,r) in cases.into_iter() {
       assert!(x.shrink_left(y) == r, "{:?} shrink_left {:?} is not equal to {:?}", x, y, r);
@@ -684,7 +745,8 @@ mod tests {
       (i0_10, 5, i0_5),
       (i0_10, 0, zero),
       (i0_10, -1, empty),
-      (i0_10, -100, empty)
+      (i0_10, -100, empty),
+      (empty, 0, empty)
     ];
     for (x,y,r) in cases.into_iter() {
       assert!(x.shrink_right(y) == r, "{:?} shrink_right {:?} is not equal to {:?}", x, y, r);
