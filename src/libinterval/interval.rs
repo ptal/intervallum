@@ -109,6 +109,13 @@ impl<Bound: Int> Disjoint for Interval<Bound>
   }
 }
 
+impl<Bound: Int> Disjoint<Bound> for Interval<Bound>
+{
+  fn is_disjoint(&self, value: &Bound) -> bool {
+    !self.contains(value)
+  }
+}
+
 impl<Bound: Int> Hull for Interval<Bound>
 {
   type Output = Interval<Bound>;
