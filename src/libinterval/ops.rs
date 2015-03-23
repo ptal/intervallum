@@ -14,7 +14,7 @@
 
 pub trait Hull<RHS = Self> {
   type Output;
-  fn hull(self, rhs: RHS) -> Self::Output;
+  fn hull(&self, rhs: &RHS) -> Self::Output;
 }
 
 pub trait Range<Bound> {

@@ -19,28 +19,28 @@ use std::iter::FromIterator;
 use std::default::Default;
 use std::num::Int;
 use ncollections::{HashSet, BTreeSet, BitSet, EnumSet};
-use std::ops::{Deref, DerefMut};
+use std::ops::Deref;
 
 // Basic set operations
 
 pub trait Intersection<RHS = Self> {
   type Output;
-  fn intersection(self, rhs: RHS) -> Self::Output;
+  fn intersection(&self, rhs: &RHS) -> Self::Output;
 }
 
 pub trait Union<RHS = Self> {
   type Output;
-  fn union(self, rhs: RHS) -> Self::Output;
+  fn union(&self, rhs: &RHS) -> Self::Output;
 }
 
 pub trait Difference<RHS = Self> {
   type Output;
-  fn difference(self, rhs: RHS) -> Self::Output;
+  fn difference(&self, rhs: &RHS) -> Self::Output;
 }
 
 pub trait SymmetricDifference<RHS = Self> {
   type Output;
-  fn symmetric_difference(self, rhs: RHS) -> Self::Output;
+  fn symmetric_difference(&self, rhs: &RHS) -> Self::Output;
 }
 
 macro_rules! set_op_impl
@@ -52,17 +52,18 @@ macro_rules! set_op_impl
     {
       type Output = BTreeSet<T>;
 
-      fn $m(self, other: BTreeSet<T>) -> BTreeSet<T> {
-        BTreeSet::wrap(FromIterator::from_iter(self.deref().$m(&other).cloned()))
+      fn $m(&self, other: &BTreeSet<T>) -> BTreeSet<T> {
+        BTreeSet::wrap(FromIterator::from_iter(self.deref().$m(other).cloned()))
       }
     }
 
     impl $t for BitSet {
       type Output = BitSet;
 
-      fn $m(mut self, other: BitSet) -> BitSet {
-        self.deref_mut().$v(&other);
-        self
+      fn $m(&self, other: &BitSet) -> BitSet {
+        let mut new = self.deref().clone();
+        new.$v(other);
+        BitSet::wrap(new)
       }
     }
 
@@ -72,8 +73,8 @@ macro_rules! set_op_impl
     {
       type Output = HashSet<T, S>;
 
-      fn $m(self, other: HashSet<T, S>) -> HashSet<T, S> {
-        HashSet::wrap(FromIterator::from_iter(self.deref().$m(&other).cloned()))
+      fn $m(&self, other: &HashSet<T, S>) -> HashSet<T, S> {
+        HashSet::wrap(FromIterator::from_iter(self.deref().$m(other).cloned()))
       }
     }
   )*}
@@ -89,8 +90,8 @@ macro_rules! set_enum_op_impl
     {
       type Output = EnumSet<E>;
 
-      fn $m(self, other: EnumSet<E>) -> EnumSet<E> {
-        EnumSet::wrap(self.deref().$m(*other))
+      fn $m(&self, other: &EnumSet<E>) -> EnumSet<E> {
+        EnumSet::wrap(self.deref().$m(**other))
       }
     }
   )*}
@@ -186,10 +187,10 @@ pub trait Bounded
 
 pub trait ShrinkLeft<Bound>
 {
-  fn shrink_left(self, lb: Bound) -> Self;
+  fn shrink_left(&self, lb: Bound) -> Self;
 }
 
 pub trait ShrinkRight<Bound>
 {
-  fn shrink_right(self, ub: Bound) -> Self;
+  fn shrink_right(&self, ub: Bound) -> Self;
 }

@@ -119,9 +119,9 @@ impl<Bound: Int> Disjoint<Bound> for Interval<Bound>
 impl<Bound: Int> Hull for Interval<Bound>
 {
   type Output = Interval<Bound>;
-  fn hull(self, other: Interval<Bound>) -> Interval<Bound> {
-    if self.is_empty() { other }
-    else if other.is_empty() { self }
+  fn hull(&self, other: &Interval<Bound>) -> Interval<Bound> {
+    if self.is_empty() { *other }
+    else if other.is_empty() { *self }
     else {
       Interval::new(
         min(self.lb, other.lb),
@@ -159,7 +159,7 @@ impl<Bound: Int> ProperSubset for Interval<Bound>
 impl<Bound: Int> Intersection for Interval<Bound>
 {
   type Output = Interval<Bound>;
-  fn intersection(self, other: Interval<Bound>) -> Interval<Bound> {
+  fn intersection(&self, other: &Interval<Bound>) -> Interval<Bound> {
     Interval::new(
       max(self.lb, other.lb),
       min(self.ub, other.ub)
@@ -170,9 +170,9 @@ impl<Bound: Int> Intersection for Interval<Bound>
 impl<Bound: Int> Intersection<Bound> for Interval<Bound>
 {
   type Output = Interval<Bound>;
-  fn intersection(self, value: Bound) -> Interval<Bound> {
-    if self.contains(&value) {
-      Interval::singleton(value)
+  fn intersection(&self, value: &Bound) -> Interval<Bound> {
+    if self.contains(value) {
+      Interval::singleton(*value)
     }
     else {
       Interval::empty()
@@ -191,44 +191,47 @@ impl<Bound: Int> Difference for Interval<Bound>
   //      A /\ [inf,B.lb-1]
   //    \/
   //      A /\ [B.ub+1, inf]
-  fn difference(self, other: Interval<Bound>) -> Interval<Bound> {
-    let left = self.intersection(Interval::min_lb(other.lb - Bound::one()));
-    let right = self.intersection(Interval::max_ub(other.ub + Bound::one()));
-    left.hull(right)
+  fn difference(&self, other: &Interval<Bound>) -> Interval<Bound> {
+    let left = self.intersection(&Interval::min_lb(other.lb - Bound::one()));
+    let right = self.intersection(&Interval::max_ub(other.ub + Bound::one()));
+    left.hull(&right)
   }
 }
 
 impl<Bound: Int> Difference<Bound> for Interval<Bound>
 {
   type Output = Interval<Bound>;
-  fn difference(mut self, value: Bound) -> Interval<Bound> {
-    if value == self.lb {
-      self.lb = self.lb + Bound::one();
+  fn difference(&self, value: &Bound) -> Interval<Bound> {
+    let mut this = *self;
+    if *value == this.lb {
+      this.lb = this.lb + Bound::one();
     }
-    else if value == self.ub {
-      self.ub = self.ub - Bound::one();
+    else if *value == this.ub {
+      this.ub = this.ub - Bound::one();
     }
-    self
+    this
   }
 }
 
 impl<Bound: Int> ShrinkLeft<Bound> for Interval<Bound>
 {
-  fn shrink_left(mut self, lb: Bound) -> Interval<Bound> {
-    if lb > self.lb {
-      self.lb = lb;
+  fn shrink_left(&self, lb: Bound) -> Interval<Bound> {
+    let mut this = *self;
+    if lb > this.lb {
+      this.lb = lb;
     }
-    self
+    this
   }
 }
 
 impl<Bound: Int> ShrinkRight<Bound> for Interval<Bound>
 {
-  fn shrink_right(mut self, ub: Bound) -> Interval<Bound> {
-    if ub < self.ub {
-      self.ub = ub;
+  fn shrink_right(&self, ub: Bound) -> Interval<Bound> {
+    let mut this = *self;
+    if ub < this.ub {
+      this.ub = ub;
     }
-    self
+    this
   }
 }
 
@@ -510,12 +513,12 @@ mod tests {
     ];
 
     for (x,y,r) in cases.into_iter() {
-      assert!(x.intersection(y) == r, "{:?} intersection {:?} is not equal to {:?}", x, y, r);
+      assert!(x.intersection(&y) == r, "{:?} intersection {:?} is not equal to {:?}", x, y, r);
     }
 
     for (x,y,r) in sym_cases.into_iter() {
-      assert!(x.intersection(y) == r, "{:?} intersection {:?} is not equal to {:?}", x, y, r);
-      assert!(y.intersection(x) == r, "{:?} intersection {:?} is not equal to {:?}", y, x, r);
+      assert!(x.intersection(&y) == r, "{:?} intersection {:?} is not equal to {:?}", x, y, r);
+      assert!(y.intersection(&x) == r, "{:?} intersection {:?} is not equal to {:?}", y, x, r);
     }
   }
 
@@ -531,7 +534,7 @@ mod tests {
       (one, 0, empty)
     ];
     for (x,y,r) in cases.into_iter() {
-      assert!(x.intersection(y) == r, "{:?} intersection {:?} is not equal to {:?}", x, y, r);
+      assert!(x.intersection(&y) == r, "{:?} intersection {:?} is not equal to {:?}", x, y, r);
     }
   }
 
@@ -584,12 +587,12 @@ mod tests {
     ];
 
     for (x,y,r) in cases.into_iter() {
-      assert!(x.hull(y) == r, "{:?} hull {:?} is not equal to {:?}", x, y, r);
+      assert!(x.hull(&y) == r, "{:?} hull {:?} is not equal to {:?}", x, y, r);
     }
 
     for (x,y,r) in sym_cases.into_iter() {
-      assert!(x.hull(y) == r, "{:?} hull {:?} is not equal to {:?}", x, y, r);
-      assert!(y.hull(x) == r, "{:?} hull {:?} is not equal to {:?}", y, x, r);
+      assert!(x.hull(&y) == r, "{:?} hull {:?} is not equal to {:?}", x, y, r);
+      assert!(y.hull(&x) == r, "{:?} hull {:?} is not equal to {:?}", y, x, r);
     }
   }
 
@@ -700,12 +703,12 @@ mod tests {
     ];
 
     for (x,y,r) in cases.into_iter() {
-      assert!(x.difference(y) == r, "{:?} difference {:?} is not equal to {:?}", x, y, r);
+      assert!(x.difference(&y) == r, "{:?} difference {:?} is not equal to {:?}", x, y, r);
     }
 
     for (x,y,(r1,r2)) in sym_cases.into_iter() {
-      assert!(x.difference(y) == r1, "{:?} difference {:?} is not equal to {:?}", x, y, r1);
-      assert!(y.difference(x) == r2, "{:?} difference {:?} is not equal to {:?}", y, x, r2);
+      assert!(x.difference(&y) == r1, "{:?} difference {:?} is not equal to {:?}", x, y, r1);
+      assert!(y.difference(&x) == r2, "{:?} difference {:?} is not equal to {:?}", y, x, r2);
     }
   }
 
@@ -722,7 +725,7 @@ mod tests {
       (one, 1, empty)
     ];
     for (x,y,r) in cases.into_iter() {
-      assert!(x.difference(y) == r, "{:?} difference {:?} is not equal to {:?}", x, y, r);
+      assert!(x.difference(&y) == r, "{:?} difference {:?} is not equal to {:?}", x, y, r);
     }
   }
 
