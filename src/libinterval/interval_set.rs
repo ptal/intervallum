@@ -23,6 +23,31 @@ pub struct IntervalSet<Bound> {
   size: Bound
 }
 
+impl<Bound: Int> IntervalSet<Bound>
+{
+  fn front<'a>(&'a self) -> &'a Interval<Bound> {
+    assert!(!self.intervals.is_empty(), "Cannot access the first element of an empty interval set.");
+    &self.intervals[0]
+  }
+
+  fn back<'a>(&'a self) -> &'a Interval<Bound> {
+    assert!(!self.intervals.is_empty(), "Cannot access the last element of an empty interval set.");
+    &self.intervals[self.intervals.len() - 1]
+  }
+
+  fn span(&self) -> Interval<Bound> {
+    if self.is_empty() {
+      Interval::empty()
+    }
+    else {
+      Interval::new(
+        self.front().lower(),
+        self.back().upper()
+      )
+    }
+  }
+}
+
 impl<Bound: Int> Eq for IntervalSet<Bound> {}
 
 impl<Bound: Int> PartialEq<IntervalSet<Bound>> for IntervalSet<Bound>
@@ -53,12 +78,12 @@ impl<Bound: Int> Bounded for IntervalSet<Bound>
 
   fn lower(&self) -> Bound {
     assert!(!self.intervals.is_empty(), "Cannot access lower bound on empty interval.");
-    self.intervals[0].lower()
+    self.front().lower()
   }
 
   fn upper(&self) -> Bound {
     assert!(!self.intervals.is_empty(), "Cannot access upper bound on empty interval.");
-    self.intervals[self.intervals.len()-1].upper()
+    self.back().upper()
   }
 }
 
@@ -93,5 +118,73 @@ impl<Bound: Int> Cardinality for IntervalSet<Bound>
 
   fn is_empty(&self) -> bool {
     self.intervals.is_empty()
+  }
+}
+
+impl<Bound: Int> Contains<Bound> for IntervalSet<Bound>
+{
+  fn contains(&self, value: &Bound) -> bool {
+    if !self.span().contains(value) {
+      false
+    }
+    else {
+      let value = *value;
+      let mut left = 0;
+      let mut right = self.intervals.len() - 1;
+      while left <= right {
+        let mid_idx = (left + right) / 2;
+        let mid = self.intervals[mid_idx];
+        if mid.lower() > value {
+          right = mid_idx - 1;
+        }
+        else if mid.upper() < value {
+          left = mid_idx + 1;
+        }
+        else {
+          return true;
+        }
+      }
+      false
+    }
+  }
+}
+
+#[allow(non_upper_case_globals)]
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use ncollections::ops::*;
+  use interval::*;
+  use ops::*;
+
+  #[test]
+  fn test_contains() {
+    let i1_2 = IntervalSet::new(1i32, 2i32);
+    let i1_2u5_8 = IntervalSet {
+      intervals: vec![
+        Interval::new(1,2),
+        Interval::new(5,8)
+      ],
+      size: 6
+    };
+
+    assert!(i1_2.contains(&1));
+    assert!(i1_2.contains(&2));
+    assert!(!i1_2.contains(&0));
+    assert!(!i1_2.contains(&3));
+
+    assert!(!i1_2u5_8.contains(&0));
+    for i in 1..3 {
+      assert!(i1_2u5_8.contains(&i));
+    }
+    for i in 3..5 {
+      assert!(!i1_2u5_8.contains(&i));
+    }
+    for i in 5..9 {
+      assert!(i1_2u5_8.contains(&i));
+    }
+    for i in 9..13 {
+      assert!(!i1_2u5_8.contains(&i));
+    }
   }
 }

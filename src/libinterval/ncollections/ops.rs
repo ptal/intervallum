@@ -153,6 +153,14 @@ pub trait ProperSubset<RHS = Self> {
   fn is_proper_subset(&self, rhs: &RHS) -> bool;
 }
 
+pub trait ShrinkLeft<Bound> {
+  fn shrink_left(&self, lb: Bound) -> Self;
+}
+
+pub trait ShrinkRight<Bound> {
+  fn shrink_right(&self, ub: Bound) -> Self;
+}
+
 // Cardinality
 
 pub trait Cardinality {
@@ -183,14 +191,4 @@ pub trait Bounded
   type Bound: PartialOrd;
   fn lower(&self) -> Self::Bound;
   fn upper(&self) -> Self::Bound;
-}
-
-pub trait ShrinkLeft<Bound>
-{
-  fn shrink_left(&self, lb: Bound) -> Self;
-}
-
-pub trait ShrinkRight<Bound>
-{
-  fn shrink_right(&self, ub: Bound) -> Self;
 }
