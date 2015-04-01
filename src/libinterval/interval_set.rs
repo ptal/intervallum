@@ -156,28 +156,6 @@ impl<Bound: Int> Contains<Bound> for IntervalSet<Bound>
   }
 }
 
-impl<Bound: Int> Union for IntervalSet<Bound>
-{
-  type Output = IntervalSet<Bound>;
-  fn union(&self, rhs: &RHS) -> Self::Output {
-    let mut res = IntervalSet::empty();
-    let mut a = self.intervals.iter();
-    let mut b = rhs.intervals.iter();
-    loop {
-      match (a.peek(), b.peek()) {
-        (None, None) => break,
-        (Some(rest), None),
-        (None, Some(rest)) => {
-          for r in rest {
-            res.intervals.push(r);
-          }
-        },
-        (Some(a), Some(b)) if
-      }
-    }
-  }
-}
-
 #[allow(non_upper_case_globals)]
 #[cfg(test)]
 mod tests {
