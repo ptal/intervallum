@@ -12,6 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//! This library proposes structures for interval arithmetics, only interval with integer bounds is supported. A second part of this library defines a bunch of traits for programming generic operations on collections. This part might be moved into another library if it revealed useful, or it might be erased when proper generic support will land in the standard collection.
+//!
+//! # Examples
+//!
+//! For examples see the [interval module](interval/index.html) or the [ncollections module](ncollections/index.html).
+//!
+//! # References
+//! * [Boost Interval Arithmetic Library](http://www.boost.org/doc/libs/1_57_0/libs/numeric/interval/doc/interval.html)
+//! * [Boost Interval Container Library](http://www.boost.org/doc/libs/1_57_0/libs/icl/doc/html/index.html)
+//!
 
 #![crate_name = "interval"]
 #![unstable]

@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//! Generic operations on collection of elements.
+//!
+//! For general informations, see the [module documentation](../index.html).
+
 use collections::enum_set::CLike;
 use std::collections::hash_state::HashState;
 use std::hash::Hash;

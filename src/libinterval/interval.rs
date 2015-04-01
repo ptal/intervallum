@@ -12,6 +12,32 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//! Closed and bounded generic interval.
+//!
+//! The bounds of the interval `[i..j]` represents the set of all elements `x` where `i <= x <= j`. Only interval with bound types implementing `Int` is currently available.
+//!
+//! Most of the operations in `ncollections::ops::*` are implemented. Intervals specific operations, proposed in `ops::*`, are also implemented. There is no `union` operation since this interval representation is not precise enough, thus an union could result in an over-approximation. Consider `[1..2] U [5..6]`, the only possible representation is `[1..6]` which is not exact by the definition of the set union. So this operation is named `hull`.
+//!
+//! # Examples
+//!
+//! ```rust
+//! use interval::Interval;
+//! use interval::ops::*;
+//! use interval::ncollections::ops::*;
+//!
+//! let a = Interval::new(0, 5);
+//! let b = Interval::singleton(10);
+//!
+//! let c = a.hull(&b);
+//! let d = c.difference(&a);
+//!
+//! assert_eq!(c, Interval::new(0,10));
+//! assert_eq!(d, Interval::new(6,10));
+//! ```
+//!
+//! # See also
+//! [interval set](../interval_set/index.html), [general operations on collection](../ncollections/ops/index.html).
+
 use ncollections::ops::*;
 use ops::*;
 
@@ -19,7 +45,7 @@ use std::cmp::{min, max};
 use std::num::Int;
 use std::fmt::{Formatter, Display, Error};
 
-// Closed interval (endpoints included).
+/// Closed interval (endpoints included).
 #[derive(Debug, Copy, Clone)]
 pub struct Interval<Bound> {
   lb: Bound,

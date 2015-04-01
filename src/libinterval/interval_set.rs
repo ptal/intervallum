@@ -12,6 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//! Closed and bounded generic interval set.
+//!
+//! It stores intervals in a set. The main advantage is the exact representation of an interval by allowing "holes". For example `[1..2] U [5..6]` is stored as `{[1..2], [5..6]}`. This structure is more space-efficient than a classic set collection (such as `BTreeSet`) if the data stored are mostly contiguous. Of course, it is less light-weight than [interval](../interval/index.html), but we keep the list of interval as small as possible by merging overlapping intervals.
+//!
+//! # See also
+//! [interval](../interval/index.html)
+
 use interval::Interval;
 use ncollections::ops::*;
 use ops::*;
@@ -26,12 +33,12 @@ pub struct IntervalSet<Bound> {
 impl<Bound: Int> IntervalSet<Bound>
 {
   fn front<'a>(&'a self) -> &'a Interval<Bound> {
-    assert!(!self.intervals.is_empty(), "Cannot access the first element of an empty interval set.");
+    assert!(!self.intervals.is_empty(), "Cannot access the first interval of an empty set.");
     &self.intervals[0]
   }
 
   fn back<'a>(&'a self) -> &'a Interval<Bound> {
-    assert!(!self.intervals.is_empty(), "Cannot access the last element of an empty interval set.");
+    assert!(!self.intervals.is_empty(), "Cannot access the last interval of an empty set.");
     &self.intervals[self.intervals.len() - 1]
   }
 
