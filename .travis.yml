@@ -12,7 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+env:
+  global:
+    - secure: TzDk06LLN/iPRWNCCFtPhbVcxitY6ldNGyHsK39cg+JAD8MMsoYuYeVUa8NjCNzGO6m/aR6e5kXtmFAaeFCskqBrooN1iyDsL38DFJI8LA5Ciz+0e3UkxOQbVe0CVCPHFJuZfprwG3s5Bt3BLCfemc6zFG7zPKInkonKzvVFwJE=
+
 language: rust
 script:
   - cargo build
   - cargo test
+  - cargo doc
+
+after_script:
+  - cd target && curl http://www.rust-ci.org/artifacts/put?t=$RUSTCI_TOKEN | sh
