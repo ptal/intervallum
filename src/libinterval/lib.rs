@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! This library proposes structures for interval arithmetics, only interval with integer bounds is supported. A second part of this library defines a bunch of traits for programming generic operations on collections. This part might be moved into another library if it revealed useful, or it might be erased when proper generic support will land in the standard collection.
+//! This library proposes structures for [interval arithmetic](https://en.wikipedia.org/wiki/Interval_arithmetic), only interval with integer bounds is supported. A second part of this library defines a bunch of traits for programming generic operations on collections. This part might be moved into another library if it proves its usefulness. It might be removed when proper generic support will land in the standard collection.
 //!
 //! # Examples
 //!
