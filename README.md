@@ -1,4 +1,4 @@
-Interval Arithmetic Library
+Interval Arithmetic Library  [![Build Status](https://travis-ci.org/ptal/rust-interval.svg?branch=master)](https://travis-ci.org/ptal/rust-interval)
 ===========================
 
 This library is usable, tested and documented, however it only works on integers (`i8`-`u64`, `u8`-`u64`, `usize` and `isize`) and only a few operations are implemented. For generic purposes we extracted common operations on collections into traits.
