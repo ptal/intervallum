@@ -22,9 +22,11 @@
 use interval::Interval;
 use ncollections::ops::*;
 use ops::*;
+use std::iter::{Peekable, IntoIterator};
 
 use std::num::Int;
 
+#[derive(Debug, Clone)]
 pub struct IntervalSet<Bound> {
   intervals: Vec<Interval<Bound>>,
   size: Bound
@@ -32,13 +34,20 @@ pub struct IntervalSet<Bound> {
 
 impl<Bound: Int> IntervalSet<Bound>
 {
+  fn from_interval(i: Interval<Bound>) -> IntervalSet<Bound> {
+    IntervalSet {
+      intervals: vec![i],
+      size: i.size()
+    }
+  }
+
   fn front<'a>(&'a self) -> &'a Interval<Bound> {
-    assert!(!self.intervals.is_empty(), "Cannot access the first interval of an empty set.");
+    assert!(!self.is_empty(), "Cannot access the first interval of an empty set.");
     &self.intervals[0]
   }
 
   fn back<'a>(&'a self) -> &'a Interval<Bound> {
-    assert!(!self.intervals.is_empty(), "Cannot access the last interval of an empty set.");
+    assert!(!self.is_empty(), "Cannot access the last interval of an empty set.");
     &self.intervals[self.intervals.len() - 1]
   }
 
@@ -51,6 +60,63 @@ impl<Bound: Int> IntervalSet<Bound>
         self.front().lower(),
         self.back().upper()
       )
+    }
+  }
+
+  fn push(&mut self, x: Interval<Bound>) {
+    assert!(!x.is_empty(), "Cannot push empty interval.");
+    assert!(self.is_empty() || !joinable(self.back(), &x),
+      "The intervals array must be ordered and intervals must not be joinable. For a safe push, use the union operation.");
+
+    self.size = self.size + x.size();
+    self.intervals.push(x);
+  }
+
+  fn pop(&mut self) -> Option<Interval<Bound>> {
+    if let Some(x) = self.intervals.pop() {
+      self.size = self.size - x.size();
+      Some(x)
+    } else {
+      None
+    }
+  }
+
+  fn join_or_push(&mut self, x: Interval<Bound>) {
+    if self.is_empty() {
+      self.push(x);
+    }
+    else {
+      assert!(!x.is_empty(), "Cannot push empty interval.");
+      assert!(self.back().lower() <= x.lower(),
+        "This operation is only for pushing interval to the back of the array, possibly overlapping with the last element.");
+
+      let joint =
+        if joinable(self.back(), &x) {
+          self.pop().unwrap().hull(&x)
+        }
+        else {
+          x
+        };
+      self.push(joint);
+    }
+  }
+
+  fn interval_count(&self) -> usize {
+    self.intervals.len()
+  }
+}
+
+fn joinable<Bound: Int>(first: &Interval<Bound>, second: &Interval<Bound>) -> bool {
+  first.upper() + Bound::one() >= second.lower()
+}
+
+impl<Bound: Int> Extend<Interval<Bound>> for IntervalSet<Bound>
+{
+  fn extend<I>(&mut self, iterable: I) where
+   I: IntoIterator<Item=Interval<Bound>>
+  {
+    for interval in iterable {
+      self.join_or_push(interval);
     }
   }
 }
@@ -72,10 +138,7 @@ impl<Bound: Int> Range<Bound> for IntervalSet<Bound>
   fn new(lb: Bound, ub: Bound) -> IntervalSet<Bound> {
     assert!(lb <= ub, "Cannot build empty interval set with an invalid range. Use IntervalSet::empty().");
     let i = Interval::new(lb, ub);
-    IntervalSet {
-      intervals: vec![i],
-      size: i.size()
-    }
+    IntervalSet::from_interval(i)
   }
 }
 
@@ -156,6 +219,50 @@ impl<Bound: Int> Contains<Bound> for IntervalSet<Bound>
   }
 }
 
+fn advance_lower<I, Item>(a : &mut Peekable<I>, b: &mut Peekable<I>) -> Item where
+ I: Iterator<Item=Item>,
+ Item: Bounded
+{
+  assert!(!a.is_empty() && !b.is_empty());
+  let who_advance = {
+    let i = a.peek().unwrap();
+    let j = b.peek().unwrap();
+    i.lower() < j.lower()
+  };
+  let to_advance = if who_advance { a } else { b };
+  to_advance.next().unwrap()
+}
+
+fn from_lower_iterator<I, Bound>(a : &mut Peekable<I>, b: &mut Peekable<I>) -> IntervalSet<Bound> where
+ I: Iterator<Item=Interval<Bound>>,
+ Bound: Int
+{
+  if a.is_empty() || b.is_empty() {
+    IntervalSet::empty()
+  } else {
+    let first = advance_lower(a, b);
+    IntervalSet::from_interval(first)
+  }
+}
+
+impl<Bound: Int> Union for IntervalSet<Bound>
+{
+  type Output = IntervalSet<Bound>;
+
+  fn union(&self, rhs: &IntervalSet<Bound>) -> IntervalSet<Bound> {
+    let mut a = &mut self.intervals.iter().cloned().peekable();
+    let mut b = &mut rhs.intervals.iter().cloned().peekable();
+    let mut res = from_lower_iterator(a, b);
+    while !a.is_empty() && !b.is_empty() {
+      let lower = advance_lower(a, b);
+      res.join_or_push(lower);
+    }
+    res.extend(a);
+    res.extend(b);
+    res
+  }
+}
+
 #[allow(non_upper_case_globals)]
 #[cfg(test)]
 mod tests {
@@ -164,34 +271,100 @@ mod tests {
   use interval::*;
   use ops::*;
 
+  fn test_inside_outside(is: IntervalSet<i32>, inside: Vec<i32>, outside: Vec<i32>) {
+    for i in &inside {
+      assert!(is.contains(i),
+        format!("{} is not contained inside {:?}, but it should.", i, is));
+    }
+    for i in &outside {
+      assert!(!is.contains(i),
+        format!("{} is contained inside {:?}, but it should not.", i, is));
+    }
+  }
+
+  // precondition: `intervals` must be a valid intern representation of the interval set.
+  fn make_interval_set(intervals: Vec<(i32, i32)>) -> IntervalSet<i32> {
+    let intervals: Vec<Interval<i32>> =
+       intervals.into_iter()
+      .map(|i| i.to_interval())
+      .collect();
+    let size = intervals.iter().fold(0, |a, i| a + i.size());
+    IntervalSet {
+      intervals: intervals,
+      size: size
+    }
+  }
+
   #[test]
   fn test_contains() {
-    let i1_2 = IntervalSet::new(1i32, 2i32);
-    let i1_2u5_8 = IntervalSet {
-      intervals: vec![
-        Interval::new(1,2),
-        Interval::new(5,8)
-      ],
-      size: 6
-    };
+    let cases = vec![
+      (vec![], vec![], vec![-2,-1,0,1,2]),
+      (vec![(1,2)], vec![1,2], vec![-1,0,3,4]),
+      (vec![(1,2),(7,9)], vec![1,2,7,8,9], vec![-1,0,3,4,5,6,10,11]),
+      (vec![(1,2),(4,5),(7,9)], vec![1,2,4,5,7,8,9], vec![-1,0,3,6,10,11])
+    ];
 
-    assert!(i1_2.contains(&1));
-    assert!(i1_2.contains(&2));
-    assert!(!i1_2.contains(&0));
-    assert!(!i1_2.contains(&3));
+    for (is, inside, outside) in cases {
+      let is = make_interval_set(is);
+      test_inside_outside(is, inside, outside);
+    }
+  }
 
-    assert!(!i1_2u5_8.contains(&0));
-    for i in 1..3 {
-      assert!(i1_2u5_8.contains(&i));
+  #[test]
+  fn test_union() {
+    // Note: the first number is the test id, so it should be easy to identify which test has failed.
+    let sym_cases = vec![
+      // identity tests
+      (1, vec![], vec![], vec![]),
+      (2, vec![], vec![(1,2)], vec![(1,2)]),
+      (3, vec![], vec![(1,2),(7,9)], vec![(1,2),(7,9)]),
+      (4, vec![(1,2),(7,9)], vec![(1,2)], vec![(1,2),(7,9)]),
+      (5, vec![(1,2),(7,9)], vec![(1,2),(7,9)], vec![(1,2),(7,9)]),
+      // front tests
+      (6, vec![(-3,-1)], vec![(1,2),(7,9)], vec![(-3,-1),(1,2),(7,9)]),
+      (7, vec![(-3,0)], vec![(1,2),(7,9)], vec![(-3,2),(7,9)]),
+      (8, vec![(-3,1)], vec![(1,2),(7,9)], vec![(-3,2),(7,9)]),
+      // middle tests
+      (9, vec![(2,7)], vec![(1,2),(7,9)], vec![(1,9)]),
+      (10, vec![(3,7)], vec![(1,2),(7,9)], vec![(1,9)]),
+      (11, vec![(4,5)], vec![(1,2),(7,9)], vec![(1,2),(4,5),(7,9)]),
+      (12, vec![(2,8)], vec![(1,2),(7,9)], vec![(1,9)]),
+      (13, vec![(2,6)], vec![(1,2),(7,9)], vec![(1,9)]),
+      (14, vec![(3,6)], vec![(1,2),(7,9)], vec![(1,9)]),
+      // back tests
+      (15, vec![(8,9)], vec![(1,2),(7,9)], vec![(1,2),(7,9)]),
+      (16, vec![(8,10)], vec![(1,2),(7,9)], vec![(1,2),(7,10)]),
+      (17, vec![(9,10)], vec![(1,2),(7,9)], vec![(1,2),(7,10)]),
+      (18, vec![(6,10)], vec![(1,2),(7,9)], vec![(1,2),(6,10)]),
+      (19, vec![(10,11)], vec![(1,2),(7,9)], vec![(1,2),(7,11)]),
+      (20, vec![(11,12)], vec![(1,2),(7,9)], vec![(1,2),(7,9),(11,12)]),
+      // mixed tests
+      (21, vec![(-3,-1),(4,5),(11,12)], vec![(1,2),(7,9)], vec![(-3,-1),(1,2),(4,5),(7,9),(11,12)]),
+      (22, vec![(-3,0),(3,6),(10,11)], vec![(1,2),(7,9)], vec![(-3,11)]),
+      (23, vec![(-3,1),(3,7),(9,11)], vec![(1,2),(7,9)], vec![(-3,11)]),
+      (24, vec![(-3,5),(7,11)], vec![(1,2),(7,9)], vec![(-3,5),(7,11)]),
+      (25, vec![(-3,5),(7,8),(12,12)], vec![(1,2),(7,9)], vec![(-3,5),(7,9),(12,12)]),
+      // englobing tests
+      (26, vec![(-1,11)], vec![(1,2),(7,9)], vec![(-1,11)]),
+    ];
+
+    for (id, a, b, expected) in sym_cases {
+      test_op_sym(format!("test #{} of union",id), a, b, |x,y| x.union(y), expected);
     }
-    for i in 3..5 {
-      assert!(!i1_2u5_8.contains(&i));
-    }
-    for i in 5..9 {
-      assert!(i1_2u5_8.contains(&i));
-    }
-    for i in 9..13 {
-      assert!(!i1_2u5_8.contains(&i));
-    }
+  }
+
+  fn test_op_sym<F>(test_id: String, a: Vec<(i32,i32)>, b: Vec<(i32,i32)>, op: F, expected: Vec<(i32,i32)>) where
+    F: Fn(&IntervalSet<i32>, &IntervalSet<i32>) -> IntervalSet<i32>
+  {
+    let a = make_interval_set(a);
+    let b = make_interval_set(b);
+    let expected = make_interval_set(expected);
+    let result = op(&a, &b);
+    assert!(result.size() == expected.size(),
+      format!("{} | {:?} has a cardinality of {} instead of {}.", test_id, result, result.size(), expected.size()));
+    assert!(result.interval_count() == expected.interval_count(),
+      format!("{} | {:?} has {} intervals instead of {}.", test_id, result, result.interval_count(), expected.interval_count()));
+    assert!(result.intervals == expected.intervals,
+      format!("{} | {:?} is different from the expected value: {:?}.", test_id, result, expected));
   }
 }
