@@ -157,6 +157,12 @@ pub trait ProperSubset<RHS = Self> {
   fn is_proper_subset(&self, rhs: &RHS) -> bool;
 }
 
+pub trait Overlap<RHS = Self> {
+  fn overlap(&self, rhs: &RHS) -> bool;
+}
+
+// Other operations
+
 pub trait ShrinkLeft<Bound> {
   fn shrink_left(&self, lb: Bound) -> Self;
 }

@@ -182,6 +182,14 @@ impl<Bound: Int> ProperSubset for Interval<Bound>
   }
 }
 
+
+impl<Bound: Int> Overlap for Interval<Bound>
+{
+  fn overlap(&self, other: &Interval<Bound>) -> bool {
+    !self.intersection(other).is_empty()
+  }
+}
+
 impl<Bound: Int> Intersection for Interval<Bound>
 {
   type Output = Interval<Bound>;
@@ -487,6 +495,62 @@ mod tests {
     for (x,y,(r1,r2)) in sym_cases.into_iter() {
       assert!(x.is_proper_subset(&y) == r1, "{:?} is proper subset of {:?} is not equal to {:?}", x, y, r1);
       assert!(y.is_proper_subset(&x) == r2, "{:?} is proper subset of {:?} is not equal to {:?}", y, x, r2);
+    }
+  }
+
+  #[test]
+  fn overlap_test() {
+    let cases = vec![
+      (zero, zero,          true),
+      (i1_2, i1_2,          true),
+      (empty, empty,        false),
+      (invalid, invalid,    false)
+    ];
+
+    // For each cases (x, y, res)
+    // * x and y are the values
+    // * res is true if x is expected to overlap y.
+    let sym_cases = vec![
+      // ||
+      // |-|
+      (empty, zero,         false),
+      (invalid, zero,       false),
+      (empty, invalid,      false),
+      // ||
+      //|--|
+      (empty, i1_2,         false),
+      (empty, i0_10,        false),
+      (invalid, i1_2,       false),
+      //  |--|
+      // |----|
+      (i1_2, i0_10,         true),
+      // |--|
+      //     |--|
+      (i0_4, i5_10,         false),
+      // |--|
+      //    |--|
+      (i0_5, i5_10,         true),
+      // |---|
+      //   |---|
+      (im5_5, i0_10,        true),
+      // |--|
+      //         |--|
+      (i0_10, i20_30,       false),
+      // |--|
+      // |---|
+      (i0_10, i0_15,        true),
+      // |---|
+      //  |--|
+      (im5_10, i0_10,       true)
+    ];
+
+    for (x,y,r) in cases.into_iter() {
+      assert!(x.overlap(&y) == r, "{:?} overlap {:?} is not equal to {:?}", x, y, r);
+    }
+
+    for (x,y,r) in sym_cases.into_iter() {
+      assert!(x.overlap(&y) == r, "{:?} overlap {:?} is not equal to {:?}", x, y, r);
+      assert!(y.overlap(&x) == r, "{:?} overlap {:?} is not equal to {:?}", y, x, r);
     }
   }
 
