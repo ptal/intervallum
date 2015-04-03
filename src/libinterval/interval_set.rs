@@ -27,12 +27,12 @@ use std::iter::{Peekable, IntoIterator};
 use std::num::Int;
 
 #[derive(Debug, Clone)]
-pub struct IntervalSet<Bound> {
+pub struct IntervalSet<Bound: Width> {
   intervals: Vec<Interval<Bound>>,
-  size: Bound
+  size: Bound::Output
 }
 
-impl<Bound: Int> IntervalSet<Bound>
+impl<Bound: Width+Int> IntervalSet<Bound>
 {
   pub fn interval_count(&self) -> usize {
     self.intervals.len()
@@ -106,11 +106,11 @@ impl<Bound: Int> IntervalSet<Bound>
   }
 }
 
-fn joinable<Bound: Int>(first: &Interval<Bound>, second: &Interval<Bound>) -> bool {
+fn joinable<Bound: Width+Int>(first: &Interval<Bound>, second: &Interval<Bound>) -> bool {
   first.upper() + Bound::one() >= second.lower()
 }
 
-impl<Bound: Int> Extend<Interval<Bound>> for IntervalSet<Bound>
+impl<Bound: Width+Int> Extend<Interval<Bound>> for IntervalSet<Bound>
 {
   fn extend<I>(&mut self, iterable: I) where
    I: IntoIterator<Item=Interval<Bound>>
@@ -121,9 +121,9 @@ impl<Bound: Int> Extend<Interval<Bound>> for IntervalSet<Bound>
   }
 }
 
-impl<Bound: Int> Eq for IntervalSet<Bound> {}
+impl<Bound: Width+Int> Eq for IntervalSet<Bound> {}
 
-impl<Bound: Int> PartialEq<IntervalSet<Bound>> for IntervalSet<Bound>
+impl<Bound: Width+Int> PartialEq<IntervalSet<Bound>> for IntervalSet<Bound>
 {
   fn eq(&self, other: &IntervalSet<Bound>) -> bool {
     if self.size() != other.size() { false }
@@ -133,7 +133,7 @@ impl<Bound: Int> PartialEq<IntervalSet<Bound>> for IntervalSet<Bound>
   }
 }
 
-impl<Bound: Int> Range<Bound> for IntervalSet<Bound>
+impl<Bound: Width+Int> Range<Bound> for IntervalSet<Bound>
 {
   fn new(lb: Bound, ub: Bound) -> IntervalSet<Bound> {
     assert!(lb <= ub, "Cannot build empty interval set with an invalid range. Use IntervalSet::empty().");
@@ -142,7 +142,7 @@ impl<Bound: Int> Range<Bound> for IntervalSet<Bound>
   }
 }
 
-impl<Bound: Int> Bounded for IntervalSet<Bound>
+impl<Bound: Width+Int> Bounded for IntervalSet<Bound>
 {
   type Bound = Bound;
 
@@ -157,41 +157,41 @@ impl<Bound: Int> Bounded for IntervalSet<Bound>
   }
 }
 
-impl <Bound: Int> Singleton<Bound> for IntervalSet<Bound>
+impl <Bound: Width+Int> Singleton<Bound> for IntervalSet<Bound>
 {
   fn singleton(x: Bound) -> IntervalSet<Bound> {
     IntervalSet::new(x, x)
   }
 }
 
-impl<Bound: Int> Empty for IntervalSet<Bound>
+impl<Bound: Width+Int> Empty for IntervalSet<Bound>
 {
   fn empty() -> IntervalSet<Bound> {
     IntervalSet {
       intervals: vec![],
-      size: <Bound as Int>::zero()
+      size: <<Bound as Width>::Output>::zero()
     }
   }
 }
 
-impl<Bound: Int> Cardinality for IntervalSet<Bound>
+impl<Bound: Width+Int> Cardinality for IntervalSet<Bound>
 {
-  type Size = Bound;
+  type Size = <Bound as Width>::Output;
 
-  fn size(&self) -> Bound {
+  fn size(&self) -> <Bound as Width>::Output {
     self.size
   }
 
   fn is_singleton(&self) -> bool {
-    self.intervals.len() == 1 && self.intervals[0].is_singleton()
+    self.size() == <<Bound as Width>::Output>::one()
   }
 
   fn is_empty(&self) -> bool {
-    self.intervals.is_empty()
+    self.size() == <<Bound as Width>::Output>::zero()
   }
 }
 
-impl<Bound: Int> Contains<Bound> for IntervalSet<Bound>
+impl<Bound: Width+Int> Contains<Bound> for IntervalSet<Bound>
 {
   fn contains(&self, value: &Bound) -> bool {
     if !self.span().contains(value) {
@@ -251,7 +251,7 @@ fn advance_lub<I, Item>(a : &mut Peekable<I>, b: &mut Peekable<I>) -> Item where
 
 fn from_lower_iterator<I, Bound>(a : &mut Peekable<I>, b: &mut Peekable<I>) -> IntervalSet<Bound> where
  I: Iterator<Item=Interval<Bound>>,
- Bound: Int
+ Bound: Width+Int
 {
   if a.is_empty() || b.is_empty() {
     IntervalSet::empty()
@@ -261,7 +261,7 @@ fn from_lower_iterator<I, Bound>(a : &mut Peekable<I>, b: &mut Peekable<I>) -> I
   }
 }
 
-impl<Bound: Int> Union for IntervalSet<Bound>
+impl<Bound: Width+Int> Union for IntervalSet<Bound>
 {
   type Output = IntervalSet<Bound>;
 
@@ -300,7 +300,7 @@ fn advance_to_first_overlapping<I, Item>(a : &mut Peekable<I>, b: &mut Peekable<
   false
 }
 
-impl<Bound: Int> Intersection for IntervalSet<Bound>
+impl<Bound: Width+Int> Intersection for IntervalSet<Bound>
 {
   type Output = IntervalSet<Bound>;
 
@@ -320,11 +320,47 @@ impl<Bound: Int> Intersection for IntervalSet<Bound>
   }
 }
 
+fn push_left_complement<Bound: Width+Int>(x: &Interval<Bound>, res: &mut IntervalSet<Bound>) {
+  let min = <Bound as Width>::min_value();
+  if x.lower() != min {
+    res.push(Interval::new(min, x.lower() - Bound::one()));
+  }
+}
+
+fn push_right_complement<Bound: Width+Int>(x: &Interval<Bound>, res: &mut IntervalSet<Bound>) {
+  let max = <Bound as Width>::max_value();
+  if x.upper() != max {
+    res.push(Interval::new(x.upper() + Bound::one(), max));
+  }
+}
+
+impl<Bound: Width+Int> Complement for IntervalSet<Bound>
+{
+  fn complement(&self) -> IntervalSet<Bound> {
+    let mut res = IntervalSet::empty();
+    if self.is_empty() {
+      res.push(Interval::whole());
+    }
+    else {
+      let one = Bound::one();
+      push_left_complement(self.front(), &mut res);
+      for i in 1..self.intervals.len() {
+        let current = &self.intervals[i];
+        let previous = &self.intervals[i-1];
+        res.push(Interval::new(previous.upper() + one, current.lower() - one));
+      }
+      push_right_complement(self.back(), &mut res);
+    }
+    res
+  }
+}
+
 #[allow(non_upper_case_globals)]
 #[cfg(test)]
 mod tests {
   use super::*;
   use ncollections::ops::*;
+  use ops::*;
   use interval::*;
 
   fn test_inside_outside(is: IntervalSet<i32>, inside: Vec<i32>, outside: Vec<i32>) {
@@ -351,7 +387,16 @@ mod tests {
     }
   }
 
-  fn test_op_sym<F>(test_id: String, a: Vec<(i32,i32)>, b: Vec<(i32,i32)>, op: F, expected: Vec<(i32,i32)>) where
+  fn test_result(test_id: String, result: IntervalSet<i32>, expected: IntervalSet<i32>) {
+    assert!(result.size() == expected.size(),
+      format!("{} | {:?} has a cardinality of {} instead of {}.",test_id, result, result.size(), expected.size()));
+    assert!(result.interval_count() == expected.interval_count(),
+      format!("{} | {:?} has {} intervals instead of {}.", test_id, result, result.interval_count(), expected.interval_count()));
+    assert!(result.intervals == expected.intervals,
+      format!("{} | {:?} is different from the expected value: {:?}.", test_id, result, expected));
+  }
+
+  fn test_binary_op_sym<F>(test_id: String, a: Vec<(i32,i32)>, b: Vec<(i32,i32)>, op: F, expected: Vec<(i32,i32)>) where
     F: Fn(&IntervalSet<i32>, &IntervalSet<i32>) -> IntervalSet<i32>
   {
     println!("Info: {}.", test_id);
@@ -359,12 +404,17 @@ mod tests {
     let b = make_interval_set(b);
     let expected = make_interval_set(expected);
     let result = op(&a, &b);
-    assert!(result.size() == expected.size(),
-      format!("{} | {:?} has a cardinality of {} instead of {}.", test_id, result, result.size(), expected.size()));
-    assert!(result.interval_count() == expected.interval_count(),
-      format!("{} | {:?} has {} intervals instead of {}.", test_id, result, result.interval_count(), expected.interval_count()));
-    assert!(result.intervals == expected.intervals,
-      format!("{} | {:?} is different from the expected value: {:?}.", test_id, result, expected));
+    test_result(test_id, result, expected);
+  }
+
+  fn test_op<F>(test_id: String, a: Vec<(i32,i32)>, op: F, expected: Vec<(i32,i32)>) where
+    F: Fn(&IntervalSet<i32>) -> IntervalSet<i32>
+  {
+    println!("Info: {}.", test_id);
+    let a = make_interval_set(a);
+    let expected = make_interval_set(expected);
+    let result = op(&a);
+    test_result(test_id, result, expected);
   }
 
   #[test]
@@ -379,6 +429,29 @@ mod tests {
     for (is, inside, outside) in cases {
       let is = make_interval_set(is);
       test_inside_outside(is, inside, outside);
+    }
+  }
+
+  #[test]
+  fn test_complement() {
+    let min = <i32 as Width>::min_value();
+    let max = <i32 as Width>::max_value();
+
+    let cases = vec![
+      (1, vec![], vec![(min, max)]),
+      (2, vec![(min, max)], vec![]),
+      (3, vec![(0,0)], vec![(min,-1),(1,max)]),
+      (4, vec![(-5,5)], vec![(min,-6),(6,max)]),
+      (5, vec![(-5,-1),(1,5)], vec![(min,-6),(0,0),(6, max)]),
+      (6, vec![(min,-1),(1,5)], vec![(0,0),(6, max)]),
+      (7, vec![(-5,-1),(1,max)], vec![(min,-6),(0,0)]),
+      (8, vec![(min,-1),(1,max)], vec![(0,0)]),
+      (9, vec![(-5,-3),(0,1),(3,5)], vec![(min,-6),(-2,-1),(2,2),(6, max)])
+    ];
+
+    for (id, a, expected) in cases {
+      test_op(format!("test #{} of complement", id), a.clone(), |x| x.complement(), expected);
+      test_op(format!("test #{} of complement(complement)", id), a.clone(), |x| x.complement().complement(), a);
     }
   }
 
@@ -422,7 +495,7 @@ mod tests {
     ];
 
     for (id, a, b, expected) in sym_cases {
-      test_op_sym(format!("test #{} of union",id), a, b, |x,y| x.union(y), expected);
+      test_binary_op_sym(format!("test #{} of union", id), a, b, |x,y| x.union(y), expected);
     }
   }
 
@@ -466,7 +539,7 @@ mod tests {
     ];
 
     for (id, a, b, expected) in sym_cases {
-      test_op_sym(format!("test #{} of intersection",id), a, b, |x,y| x.intersection(y), expected);
+      test_binary_op_sym(format!("test #{} of intersection", id), a, b, |x,y| x.intersection(y), expected);
     }
   }
 }

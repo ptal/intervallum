@@ -47,6 +47,10 @@ pub trait SymmetricDifference<RHS = Self> {
   fn symmetric_difference(&self, rhs: &RHS) -> Self::Output;
 }
 
+pub trait Complement {
+  fn complement(&self) -> Self;
+}
+
 macro_rules! set_op_impl
 {
   ( $( $t: ident, $m:ident, $v:ident );* ) =>
