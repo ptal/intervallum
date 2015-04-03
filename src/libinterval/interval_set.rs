@@ -355,6 +355,24 @@ impl<Bound: Width+Int> Complement for IntervalSet<Bound>
   }
 }
 
+impl<Bound: Width+Int> Difference for IntervalSet<Bound> {
+  type Output = IntervalSet<Bound>;
+
+  fn difference(&self, rhs: &IntervalSet<Bound>) -> IntervalSet<Bound> {
+    self.intersection(&rhs.complement())
+  }
+}
+
+impl<Bound: Width+Int> SymmetricDifference for IntervalSet<Bound> {
+  type Output = IntervalSet<Bound>;
+
+  fn symmetric_difference(&self, rhs: &IntervalSet<Bound>) -> IntervalSet<Bound> {
+    let union = self.union(rhs);
+    let intersection = self.intersection(rhs);
+    union.difference(&intersection)
+  }
+}
+
 #[allow(non_upper_case_globals)]
 #[cfg(test)]
 mod tests {
@@ -387,11 +405,7 @@ mod tests {
     }
   }
 
-  fn test_result(test_id: String, result: IntervalSet<i32>, expected: IntervalSet<i32>) {
-    assert!(result.size() == expected.size(),
-      format!("{} | {:?} has a cardinality of {} instead of {}.",test_id, result, result.size(), expected.size()));
-    assert!(result.interval_count() == expected.interval_count(),
-      format!("{} | {:?} has {} intervals instead of {}.", test_id, result, result.interval_count(), expected.interval_count()));
+  fn test_result(test_id: String, result: &IntervalSet<i32>, expected: &IntervalSet<i32>) {
     assert!(result.intervals == expected.intervals,
       format!("{} | {:?} is different from the expected value: {:?}.", test_id, result, expected));
   }
@@ -399,12 +413,18 @@ mod tests {
   fn test_binary_op_sym<F>(test_id: String, a: Vec<(i32,i32)>, b: Vec<(i32,i32)>, op: F, expected: Vec<(i32,i32)>) where
     F: Fn(&IntervalSet<i32>, &IntervalSet<i32>) -> IntervalSet<i32>
   {
+    test_binary_op(test_id.clone(), a.clone(), b.clone(), |i,j| op(i,j), expected.clone());
+    test_binary_op(test_id, b, a, op, expected);
+  }
+
+  fn test_binary_op<F>(test_id: String, a: Vec<(i32,i32)>, b: Vec<(i32,i32)>, op: F, expected: Vec<(i32,i32)>) where
+    F: Fn(&IntervalSet<i32>, &IntervalSet<i32>) -> IntervalSet<i32>
+  {
     println!("Info: {}.", test_id);
     let a = make_interval_set(a);
     let b = make_interval_set(b);
     let expected = make_interval_set(expected);
-    let result = op(&a, &b);
-    test_result(test_id, result, expected);
+    test_result(test_id, &op(&a, &b), &expected);
   }
 
   fn test_op<F>(test_id: String, a: Vec<(i32,i32)>, op: F, expected: Vec<(i32,i32)>) where
@@ -414,7 +434,7 @@ mod tests {
     let a = make_interval_set(a);
     let expected = make_interval_set(expected);
     let result = op(&a);
-    test_result(test_id, result, expected);
+    test_result(test_id, &result, &expected);
   }
 
   #[test]
@@ -540,6 +560,97 @@ mod tests {
 
     for (id, a, b, expected) in sym_cases {
       test_binary_op_sym(format!("test #{} of intersection", id), a, b, |x,y| x.intersection(y), expected);
+    }
+  }
+
+  #[test]
+  fn test_difference() {
+    // Note: the first number is the test id, so it should be easy to identify which test has failed.
+    // The two first vectors are the operands and the two last are expected results (the first
+    // for a.difference(b) and the second for b.difference(a)).
+    let cases = vec![
+      // identity tests
+      (1, vec![], vec![], vec![], vec![]),
+      (2, vec![], vec![(1,2)], vec![], vec![(1,2)]),
+      (3, vec![], vec![(1,2),(7,9)], vec![], vec![(1,2),(7,9)]),
+      (4, vec![(1,2),(7,9)], vec![(1,2)], vec![(7,9)], vec![]),
+      (5, vec![(1,2),(7,9)], vec![(1,2),(7,9)], vec![], vec![]),
+      // front tests
+      (6, vec![(-3,-1)], vec![(1,2),(7,9)], vec![(-3,-1)], vec![(1,2),(7,9)]),
+      (7, vec![(-3,0)], vec![(1,2),(7,9)], vec![(-3,0)], vec![(1,2),(7,9)]),
+      (8, vec![(-3,1)], vec![(1,2),(7,9)], vec![(-3,0)], vec![(2,2),(7,9)]),
+      // middle tests
+      (9, vec![(2,7)], vec![(1,2),(7,9)], vec![(3,6)], vec![(1,1),(8,9)]),
+      (10, vec![(3,7)], vec![(1,2),(7,9)], vec![(3,6)], vec![(1,2),(8,9)]),
+      (11, vec![(4,5)], vec![(1,2),(7,9)], vec![(4,5)], vec![(1,2),(7,9)]),
+      (12, vec![(2,8)], vec![(1,2),(7,9)], vec![(3,6)], vec![(1,1),(9,9)]),
+      (13, vec![(2,6)], vec![(1,2),(7,9)], vec![(3,6)], vec![(1,1),(7,9)]),
+      (14, vec![(3,6)], vec![(1,2),(7,9)], vec![(3,6)], vec![(1,2),(7,9)]),
+      // back tests
+      (15, vec![(8,9)], vec![(1,2),(7,9)], vec![], vec![(1,2),(7,7)]),
+      (16, vec![(8,10)], vec![(1,2),(7,9)], vec![(10,10)], vec![(1,2),(7,7)]),
+      (17, vec![(9,10)], vec![(1,2),(7,9)], vec![(10,10)], vec![(1,2),(7,8)]),
+      (18, vec![(6,10)], vec![(1,2),(7,9)], vec![(6,6),(10,10)], vec![(1,2)]),
+      (19, vec![(10,11)], vec![(1,2),(7,9)], vec![(10,11)], vec![(1,2),(7,9)]),
+      (20, vec![(11,12)], vec![(1,2),(7,9)], vec![(11,12)], vec![(1,2),(7,9)]),
+      // mixed tests
+      (21, vec![(-3,-1),(4,5),(11,12)], vec![(1,2),(7,9)], vec![(-3,-1),(4,5),(11,12)], vec![(1,2),(7,9)]),
+      (22, vec![(-3,0),(3,6),(10,11)], vec![(1,2),(7,9)], vec![(-3,0),(3,6),(10,11)], vec![(1,2),(7,9)]),
+      (23, vec![(-3,1),(3,7),(9,11)], vec![(1,2),(7,9)], vec![(-3,0),(3,6),(10,11)], vec![(2,2),(8,8)]),
+      (24, vec![(-3,5),(7,11)], vec![(1,2),(7,9)], vec![(-3,0),(3,5),(10,11)], vec![]),
+      (25, vec![(-3,5),(7,8),(12,12)], vec![(1,2),(7,9)], vec![(-3,0),(3,5),(12,12)], vec![(9,9)]),
+      // englobing tests
+      (26, vec![(-1,11)], vec![(1,2),(7,9)], vec![(-1,0),(3,6),(10,11)], vec![]),
+    ];
+
+    for (id, a, b, expected, expected_sym) in cases {
+      test_binary_op(format!("test #{} of difference", id), a.clone(), b.clone(), |x,y| x.difference(y), expected);
+      test_binary_op(format!("test #{} of difference", id), b, a, |x,y| x.difference(y), expected_sym);
+    }
+  }
+
+  #[test]
+  fn test_symmetric_difference() {
+    // Note: the first number is the test id, so it should be easy to identify which test has failed.
+    // The two first vectors are the operands and the expected result is last.
+    let sym_cases = vec![
+      // identity tests
+      (1, vec![], vec![], vec![]),
+      (2, vec![], vec![(1,2)], vec![(1,2)]),
+      (3, vec![], vec![(1,2),(7,9)], vec![(1,2),(7,9)]),
+      (4, vec![(1,2),(7,9)], vec![(1,2)], vec![(7,9)]),
+      (5, vec![(1,2),(7,9)], vec![(1,2),(7,9)], vec![]),
+      // front tests
+      (6, vec![(-3,-1)], vec![(1,2),(7,9)], vec![(-3,-1),(1,2),(7,9)]),
+      (7, vec![(-3,0)], vec![(1,2),(7,9)], vec![(-3,2),(7,9)]),
+      (8, vec![(-3,1)], vec![(1,2),(7,9)], vec![(-3,0),(2,2),(7,9)]),
+      // middle tests
+      (9, vec![(2,7)], vec![(1,2),(7,9)], vec![(1,1),(3,6),(8,9)]),
+      (10, vec![(3,7)], vec![(1,2),(7,9)], vec![(1,6),(8,9)]),
+      (11, vec![(4,5)], vec![(1,2),(7,9)], vec![(1,2),(4,5),(7,9)]),
+      (12, vec![(2,8)], vec![(1,2),(7,9)], vec![(1,1),(3,6),(9,9)]),
+      (13, vec![(2,6)], vec![(1,2),(7,9)], vec![(1,1),(3,9)]),
+      (14, vec![(3,6)], vec![(1,2),(7,9)], vec![(1,9)]),
+      // back tests
+      (15, vec![(8,9)], vec![(1,2),(7,9)], vec![(1,2),(7,7)]),
+      (16, vec![(8,10)], vec![(1,2),(7,9)], vec![(1,2),(7,7),(10,10)]),
+      (17, vec![(9,10)], vec![(1,2),(7,9)], vec![(1,2),(7,8),(10,10)]),
+      (18, vec![(6,10)], vec![(1,2),(7,9)], vec![(1,2),(6,6),(10,10)]),
+      (19, vec![(10,11)], vec![(1,2),(7,9)], vec![(1,2),(7,11)]),
+      (20, vec![(11,12)], vec![(1,2),(7,9)], vec![(1,2),(7,9),(11,12)]),
+      // mixed tests
+      (21, vec![(-3,-1),(4,5),(11,12)], vec![(1,2),(7,9)], vec![(-3,-1),(1,2),(4,5),(7,9),(11,12)]),
+      (22, vec![(-3,0),(3,6),(10,11)], vec![(1,2),(7,9)], vec![(-3,11)]),
+      (23, vec![(-3,1),(3,7),(9,11)], vec![(1,2),(7,9)], vec![(-3,0),(2,6),(8,8),(10,11)]),
+      (24, vec![(-3,5),(7,11)], vec![(1,2),(7,9)], vec![(-3,0),(3,5),(10,11)]),
+      (25, vec![(-3,5),(7,8),(12,12)], vec![(1,2),(7,9)], vec![(-3,0),(3,5),(9,9),(12,12)]),
+      // englobing tests
+      (26, vec![(-1,11)], vec![(1,2),(7,9)], vec![(-1,0),(3,6),(10,11)]),
+    ];
+
+    for (id, a, b, expected) in sym_cases {
+      test_binary_op_sym(format!("test #{} of symmetric difference", id),
+        a, b, |x,y| x.symmetric_difference(y), expected);
     }
   }
 }
