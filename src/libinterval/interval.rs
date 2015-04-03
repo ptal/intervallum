@@ -52,9 +52,9 @@ pub struct Interval<Bound> {
   ub: Bound
 }
 
-impl<Bound: Int> Eq for Interval<Bound> {}
+impl<Bound: Width+Int> Eq for Interval<Bound> {}
 
-impl<Bound: Int> PartialEq<Interval<Bound>> for Interval<Bound>
+impl<Bound: Width+Int> PartialEq<Interval<Bound>> for Interval<Bound>
 {
   fn eq(&self, other: &Interval<Bound>) -> bool {
     if self.is_empty() && other.is_empty() { true }
@@ -62,20 +62,24 @@ impl<Bound: Int> PartialEq<Interval<Bound>> for Interval<Bound>
   }
 }
 
-impl<Bound: Int> Interval<Bound>
+impl<Bound: Width+Int> Interval<Bound>
 {
   fn min_lb(ub: Bound) -> Interval<Bound> {
-    Interval::new(Int::min_value(), ub)
+    Interval::new(<Bound as Width>::min_value(), ub)
   }
 
   fn max_ub(lb: Bound) -> Interval<Bound> {
-    Interval::new(lb, Int::max_value())
+    Interval::new(lb, <Bound as Width>::max_value())
   }
 }
 
-impl<Bound: Int> Range<Bound> for Interval<Bound>
+impl<Bound: Width+Int> Range<Bound> for Interval<Bound>
 {
   fn new(lb: Bound, ub: Bound) -> Interval<Bound> {
+    assert!(lb >= <Bound as Width>::min_value(),
+      "Lower bound exceeds the minimum value of a bound.");
+    assert!(ub <= <Bound as Width>::max_value(),
+      "Upper bound exceeds the maximum value of a bound.");
     Interval { lb: lb, ub: ub }
   }
 }
@@ -93,28 +97,34 @@ impl<Bound: Int> Bounded for Interval<Bound>
   }
 }
 
-impl <Bound: Int> Singleton<Bound> for Interval<Bound>
+impl <Bound: Width+Int> Singleton<Bound> for Interval<Bound>
 {
   fn singleton(x: Bound) -> Interval<Bound> {
     Interval::new(x, x)
   }
 }
 
-
-impl<Bound: Int> Empty for Interval<Bound>
+impl<Bound: Width+Int> Empty for Interval<Bound>
 {
   fn empty() -> Interval<Bound> {
     Interval::new(Bound::one(), Bound::zero())
   }
 }
 
-impl<Bound: Int> Cardinality for Interval<Bound>
+impl<Bound: Width+Int> Whole for Interval<Bound>
 {
-  type Size = Bound;
-  fn size(&self) -> Bound {
-    if self.is_empty() { Bound::zero() }
+  fn whole() -> Interval<Bound> {
+    Interval::new(<Bound as Width>::min_value(), <Bound as Width>::max_value())
+  }
+}
+
+impl<Bound: Width+Int> Cardinality for Interval<Bound>
+{
+  type Size = <Bound as Width>::Output;
+  fn size(&self) -> <Bound as Width>::Output {
+    if self.is_empty() { <<Bound as Width>::Output>::zero() }
     else {
-      self.ub - self.lb + Bound::one()
+      Bound::width(&self.lb, &self.ub)
     }
   }
 
@@ -127,7 +137,7 @@ impl<Bound: Int> Cardinality for Interval<Bound>
   }
 }
 
-impl<Bound: Int> Disjoint for Interval<Bound>
+impl<Bound: Width+Int> Disjoint for Interval<Bound>
 {
   fn is_disjoint(&self, other: &Interval<Bound>) -> bool {
        self.is_empty() || other.is_empty()
@@ -142,7 +152,7 @@ impl<Bound: Int> Disjoint<Bound> for Interval<Bound>
   }
 }
 
-impl<Bound: Int> Hull for Interval<Bound>
+impl<Bound: Width+Int> Hull for Interval<Bound>
 {
   type Output = Interval<Bound>;
   fn hull(&self, other: &Interval<Bound>) -> Interval<Bound> {
@@ -165,7 +175,7 @@ impl<Bound: Int> Contains<Bound> for Interval<Bound>
   }
 }
 
-impl<Bound: Int> Subset for Interval<Bound>
+impl<Bound: Width+Int> Subset for Interval<Bound>
 {
   fn is_subset(&self, other: &Interval<Bound>) -> bool {
     if self.is_empty() { true }
@@ -175,7 +185,7 @@ impl<Bound: Int> Subset for Interval<Bound>
   }
 }
 
-impl<Bound: Int> ProperSubset for Interval<Bound>
+impl<Bound: Width+Int> ProperSubset for Interval<Bound>
 {
   fn is_proper_subset(&self, other: &Interval<Bound>) -> bool {
     self.is_subset(other) && self != other
@@ -183,14 +193,14 @@ impl<Bound: Int> ProperSubset for Interval<Bound>
 }
 
 
-impl<Bound: Int> Overlap for Interval<Bound>
+impl<Bound: Width+Int> Overlap for Interval<Bound>
 {
   fn overlap(&self, other: &Interval<Bound>) -> bool {
     !self.is_disjoint(other)
   }
 }
 
-impl<Bound: Int> Intersection for Interval<Bound>
+impl<Bound: Width+Int> Intersection for Interval<Bound>
 {
   type Output = Interval<Bound>;
   fn intersection(&self, other: &Interval<Bound>) -> Interval<Bound> {
@@ -201,7 +211,7 @@ impl<Bound: Int> Intersection for Interval<Bound>
   }
 }
 
-impl<Bound: Int> Intersection<Bound> for Interval<Bound>
+impl<Bound: Width+Int> Intersection<Bound> for Interval<Bound>
 {
   type Output = Interval<Bound>;
   fn intersection(&self, value: &Bound) -> Interval<Bound> {
@@ -214,7 +224,7 @@ impl<Bound: Int> Intersection<Bound> for Interval<Bound>
   }
 }
 
-impl<Bound: Int> Difference for Interval<Bound>
+impl<Bound: Width+Int> Difference for Interval<Bound>
 {
   type Output = Interval<Bound>;
   // A - B is equivalent to A /\ ~B
@@ -269,7 +279,7 @@ impl<Bound: Int> ShrinkRight<Bound> for Interval<Bound>
   }
 }
 
-impl<Bound: Display+Int> Display for Interval<Bound>
+impl<Bound: Display+Width+Int> Display for Interval<Bound>
 {
   fn fmt(&self, formatter: &mut Formatter) -> Result<(), Error> {
     if self.is_empty() {
@@ -280,28 +290,28 @@ impl<Bound: Display+Int> Display for Interval<Bound>
   }
 }
 
-pub trait ToInterval<Bound: Int> {
+pub trait ToInterval<Bound> {
   fn to_interval(self) -> Interval<Bound>;
 }
 
-impl<Bound: Int> ToInterval<Bound> for Interval<Bound> {
+impl<Bound> ToInterval<Bound> for Interval<Bound> {
   fn to_interval(self) -> Interval<Bound> { self }
 }
 
-impl<Bound: Int> ToInterval<Bound> for (Bound, Bound) {
+impl<Bound: Width+Int> ToInterval<Bound> for (Bound, Bound) {
   fn to_interval(self) -> Interval<Bound> {
     let (a, b) = self;
     Interval::new(a, b)
   }
 }
 
-impl<Bound: Int> ToInterval<Bound> for () {
+impl<Bound: Width+Int> ToInterval<Bound> for () {
   fn to_interval(self) -> Interval<Bound> {
     Interval::empty()
   }
 }
 
-impl<Bound: Int> ToInterval<Bound> for Bound {
+impl<Bound: Width+Int> ToInterval<Bound> for Bound {
   fn to_interval(self) -> Interval<Bound> {
     Interval::singleton(self)
   }
@@ -352,6 +362,9 @@ mod tests {
 
   #[test]
   fn size_test() {
+    let whole_i32: Interval<i32> = Interval::whole();
+    let whole_u32: Interval<u32> = Interval::whole();
+
     assert_eq!(zero.size(), 1);
     assert_eq!(one.size(), 1);
     assert_eq!(empty.size(), 0);
@@ -360,6 +373,9 @@ mod tests {
     assert_eq!(i1_2.size(), 2);
     assert_eq!(i0_10.size(), 11);
     assert_eq!(im30_m20.size(), 11);
+
+    assert_eq!(whole_i32.size(), u32::max_value());
+    assert_eq!(whole_u32.size(), u32::max_value());
   }
 
   #[test]
