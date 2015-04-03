@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Interval specific operations.
+//! Interval and bound specific operations.
 
 use std::num::Int;
 

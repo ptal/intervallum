@@ -1,6 +1,6 @@
 [package]
 
-name = "interval"
+name = "intervallum"
 version = "0.1.0"
 authors = [ "Pierre Talbot <ptalbot@hyc.io>" ]
 
