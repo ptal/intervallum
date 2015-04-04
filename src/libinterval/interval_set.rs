@@ -373,6 +373,20 @@ impl<Bound: Width+Int> SymmetricDifference for IntervalSet<Bound> {
   }
 }
 
+impl<Bound: Width+Int> Overlap for IntervalSet<Bound> {
+  fn overlap(&self, rhs: &IntervalSet<Bound>) -> bool {
+    let mut a = &mut self.intervals.iter().cloned().peekable();
+    let mut b = &mut rhs.intervals.iter().cloned().peekable();
+    advance_to_first_overlapping(a, b)
+  }
+}
+
+impl<Bound: Width+Int> Disjoint for IntervalSet<Bound> {
+  fn is_disjoint(&self, rhs: &IntervalSet<Bound>) -> bool {
+    !self.overlap(rhs)
+  }
+}
+
 #[allow(non_upper_case_globals)]
 #[cfg(test)]
 mod tests {
@@ -425,6 +439,22 @@ mod tests {
     let b = make_interval_set(b);
     let expected = make_interval_set(expected);
     test_result(test_id, &op(&a, &b), &expected);
+  }
+
+  fn test_binary_bool_op_sym<F>(test_id: String, a: Vec<(i32,i32)>, b: Vec<(i32,i32)>, op: F, expected: bool) where
+    F: Fn(&IntervalSet<i32>, &IntervalSet<i32>) -> bool
+  {
+    test_binary_bool_op(test_id.clone(), a.clone(), b.clone(), |i,j| op(i,j), expected);
+    test_binary_bool_op(test_id, b, a, op, expected);
+  }
+
+  fn test_binary_bool_op<F>(test_id: String, a: Vec<(i32,i32)>, b: Vec<(i32,i32)>, op: F, expected: bool) where
+    F: Fn(&IntervalSet<i32>, &IntervalSet<i32>) -> bool
+  {
+    println!("Info: {}.", test_id);
+    let a = make_interval_set(a);
+    let b = make_interval_set(b);
+    assert_eq!(op(&a, &b), expected);
   }
 
   fn test_op<F>(test_id: String, a: Vec<(i32,i32)>, op: F, expected: Vec<(i32,i32)>) where
@@ -651,6 +681,53 @@ mod tests {
     for (id, a, b, expected) in sym_cases {
       test_binary_op_sym(format!("test #{} of symmetric difference", id),
         a, b, |x,y| x.symmetric_difference(y), expected);
+    }
+  }
+
+  #[test]
+  fn test_overlap() {
+    // Note: the first number is the test id, so it should be easy to identify which test has failed.
+    // The two first vectors are the operands and the expected result is last.
+    let sym_cases = vec![
+      // identity tests
+      (1, vec![], vec![], false),
+      (2, vec![], vec![(1,2)], false),
+      (3, vec![], vec![(1,2),(7,9)], false),
+      (4, vec![(1,2),(7,9)], vec![(1,2)], true),
+      (5, vec![(1,2),(7,9)], vec![(1,2),(7,9)], true),
+      // front tests
+      (6, vec![(-3,-1)], vec![(1,2),(7,9)], false),
+      (7, vec![(-3,0)], vec![(1,2),(7,9)], false),
+      (8, vec![(-3,1)], vec![(1,2),(7,9)], true),
+      // middle tests
+      (9, vec![(2,7)], vec![(1,2),(7,9)], true),
+      (10, vec![(3,7)], vec![(1,2),(7,9)], true),
+      (11, vec![(4,5)], vec![(1,2),(7,9)], false),
+      (12, vec![(2,8)], vec![(1,2),(7,9)], true),
+      (13, vec![(2,6)], vec![(1,2),(7,9)], true),
+      (14, vec![(3,6)], vec![(1,2),(7,9)], false),
+      // back tests
+      (15, vec![(8,9)], vec![(1,2),(7,9)], true),
+      (16, vec![(8,10)], vec![(1,2),(7,9)], true),
+      (17, vec![(9,10)], vec![(1,2),(7,9)], true),
+      (18, vec![(6,10)], vec![(1,2),(7,9)], true),
+      (19, vec![(10,11)], vec![(1,2),(7,9)], false),
+      (20, vec![(11,12)], vec![(1,2),(7,9)], false),
+      // mixed tests
+      (21, vec![(-3,-1),(4,5),(11,12)], vec![(1,2),(7,9)], false),
+      (22, vec![(-3,0),(3,6),(10,11)], vec![(1,2),(7,9)], false),
+      (23, vec![(-3,1),(3,7),(9,11)], vec![(1,2),(7,9)], true),
+      (24, vec![(-3,5),(7,11)], vec![(1,2),(7,9)], true),
+      (25, vec![(-3,5),(7,8),(12,12)], vec![(1,2),(7,9)], true),
+      // englobing tests
+      (26, vec![(-1,11)], vec![(1,2),(7,9)], true),
+    ];
+
+    for (id, a, b, expected) in sym_cases {
+      test_binary_bool_op_sym(format!("test #{} of overlap", id),
+        a.clone(), b.clone(), |x,y| x.overlap(y), expected);
+      test_binary_bool_op_sym(format!("test #{} of is_disjoint", id),
+        a, b, |x,y| x.is_disjoint(y), !expected);
     }
   }
 }
