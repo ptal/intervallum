@@ -52,9 +52,13 @@ impl<Bound: Width+Int> IntervalSet<Bound>
     &self.intervals[0]
   }
 
+  fn back_idx(&self) -> usize {
+    self.intervals.len() - 1
+  }
+
   fn back<'a>(&'a self) -> &'a Interval<Bound> {
     assert!(!self.is_empty(), "Cannot access the last interval of an empty set.");
-    &self.intervals[self.intervals.len() - 1]
+    &self.intervals[self.back_idx()]
   }
 
   fn span(&self) -> Interval<Bound> {
@@ -62,11 +66,15 @@ impl<Bound: Width+Int> IntervalSet<Bound>
       Interval::empty()
     }
     else {
-      Interval::new(
-        self.front().lower(),
-        self.back().upper()
-      )
+      self.span_slice(0, self.back_idx())
     }
+  }
+
+  fn span_slice(&self, left: usize, right: usize) -> Interval<Bound> {
+    Interval::new(
+      self.intervals[left].lower(),
+      self.intervals[right].upper()
+    )
   }
 
   fn push(&mut self, x: Interval<Bound>) {
@@ -107,6 +115,30 @@ impl<Bound: Width+Int> IntervalSet<Bound>
     }
   }
 
+  fn find_interval_between(&self, value: &Bound,
+    mut left: usize, mut right: usize) -> (usize, usize)
+  {
+    assert!(left <= right);
+    assert!(right < self.intervals.len());
+    assert!(self.span_slice(left, right).contains(value));
+
+    let value = *value;
+    while left <= right {
+      let mid_idx = (left + right) / 2;
+      let mid = self.intervals[mid_idx];
+      if mid.lower() > value {
+        right = mid_idx - 1;
+      }
+      else if mid.upper() < value {
+        left = mid_idx + 1;
+      }
+      else {
+        return (mid_idx, mid_idx)
+      }
+    }
+    (right, left)
+  }
+
   // Returns the indexes of the left and right interval of `value`.
   // If the value is outside `self`, returns None.
   // If the value is inside one of the interval, the indexes will be equal.
@@ -115,23 +147,7 @@ impl<Bound: Width+Int> IntervalSet<Bound>
       None
     }
     else {
-      let value = *value;
-      let mut left = 0;
-      let mut right = self.intervals.len() - 1;
-      while left <= right {
-        let mid_idx = (left + right) / 2;
-        let mid = self.intervals[mid_idx];
-        if mid.lower() > value {
-          right = mid_idx - 1;
-        }
-        else if mid.upper() < value {
-          left = mid_idx + 1;
-        }
-        else {
-          return Some((mid_idx, mid_idx));
-        }
-      }
-      Some((right, left))
+      Some(self.find_interval_between(value, 0, self.back_idx()))
     }
   }
 }
@@ -446,6 +462,35 @@ impl<Bound: Width+Int> ShrinkRight<Bound> for IntervalSet<Bound>
   }
 }
 
+impl<Bound: Width+Int> Subset for IntervalSet<Bound>
+{
+  fn is_subset(&self, other: &IntervalSet<Bound>) -> bool {
+    if self.is_empty() { true }
+    else if self.size() > other.size() { false }
+    else if !self.span().is_subset(&other.span()) { false }
+    else {
+      let mut left = 0;
+      let right = other.intervals.len() - 1;
+      for interval in &self.intervals {
+        let (l, r) = other.find_interval_between(&interval.lower(), left, right);
+        if l == r && interval.is_subset(&other.intervals[l]) {
+          left = l;
+        } else {
+          return false;
+        }
+      }
+      true
+    }
+  }
+}
+
+impl<Bound: Width+Int> ProperSubset for IntervalSet<Bound>
+{
+  fn is_proper_subset(&self, other: &IntervalSet<Bound>) -> bool {
+    self.is_subset(other) && self.size() != other.size()
+  }
+}
+
 impl<Bound: Display+Width+Int> Display for IntervalSet<Bound> where
  <Bound as Width>::Output: Display
 {
@@ -457,7 +502,6 @@ impl<Bound: Display+Width+Int> Display for IntervalSet<Bound> where
       formatter.write_str("}"))
   }
 }
-
 
 #[allow(non_upper_case_globals)]
 #[cfg(test)]
@@ -844,6 +888,39 @@ mod tests {
         a.clone(), v, |x, v| x.shrink_left(v), expected_left);
       test_binary_value_op(format!("test #{} of shrink_right", id),
         a, v, |x, v| x.shrink_right(v), expected_right);
+    }
+  }
+
+  #[test]
+  fn test_subset() {
+    // Note: the first number is the test id, so it should be easy to identify which test has failed.
+    // The two first vectors are the operands and the four last are expected results (resp.
+    // `a.is_subset(b)`, `b.is_subset(a)`, `a.is_proper_subset(b)` and `b.is_proper_subset(a)`.
+    let cases = vec![
+      // identity tests
+      (1, vec![], vec![], true, true, false, false),
+      (2, vec![], vec![(1,2)], true, false, true, false),
+      (3, vec![], vec![(1,2),(7,9)], true, false, true, false),
+      (4, vec![(1,2),(7,9)], vec![(1,2)], false, true, false, true),
+      (5, vec![(1,2),(7,9)], vec![(1,2),(7,9)], true, true, false, false),
+      // middle tests
+      (6, vec![(2,7)], vec![(1,2),(7,9)], false, false, false, false),
+      (7, vec![(3,7)], vec![(1,2),(7,9)], false, false, false, false),
+      (8, vec![(4,5)], vec![(1,2),(7,9)], false, false, false, false),
+      (9, vec![(2,8)], vec![(1,2),(7,9)], false, false, false, false),
+      // mixed tests
+      (10, vec![(-3,-1),(4,5),(11,12)], vec![(-2,-1),(7,9)], false, false, false, false),
+      (11, vec![(-3,0),(3,6),(10,11)], vec![(-2,-1),(4,4),(10,10)], false, true, false, true),
+      (12, vec![(-3,0),(3,6),(10,11)], vec![(-3,0),(3,6),(10,11)], true, true, false, false),
+      // englobing tests
+      (13, vec![(-1,11)], vec![(1,2),(7,9)], false, true, false, true),
+    ];
+
+    for (id, a, b, expected, expected_sym, expected_proper, expected_proper_sym) in cases {
+      test_binary_bool_op(format!("test #{} of subset", id), a.clone(), b.clone(), |x,y| x.is_subset(y), expected);
+      test_binary_bool_op(format!("test #{} of subset", id), b.clone(), a.clone(), |x,y| x.is_subset(y), expected_sym);
+      test_binary_bool_op(format!("test #{} of proper subset", id), a.clone(), b.clone(), |x,y| x.is_proper_subset(y), expected_proper);
+      test_binary_bool_op(format!("test #{} of proper subset", id), b.clone(), a.clone(), |x,y| x.is_proper_subset(y), expected_proper_sym);
     }
   }
 }
