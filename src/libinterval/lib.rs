@@ -20,7 +20,7 @@
 //!
 //! # Limits
 //!
-//! Interval bounds must implement, for most operations, the `Width` trait. This is because the maximum size of an n-bits interval can not fit in an n-bits integer. Consider the 1-bit bound `[0, 1]`, the size `2` can not be represented with only one bit. Therefore, the interval bounds must be used within the limits of `Width::min_value()` and `Width::max_value()`, and not by the limits provided by the `Int` trait.
+//! Interval bounds must implement, for most operations, the `Width` trait. This is because the maximum size of an n-bits interval can not fit in an n-bits integer. Consider the interval `[0, 1]` with 1-bit bounds, the size `2` can not be represented with only one bit. It needs `n+1` bits, and this is problematic with the largest primitive types such as `u64`. Therefore, the interval bounds must be used within the limits of `Width::min_value()` and `Width::max_value()`, and not by the limits provided by the `Int` trait.
 //!
 //! # Examples
 //!
