@@ -188,6 +188,15 @@ impl<Bound: Width+Int> Range<Bound> for IntervalSet<Bound>
   }
 }
 
+impl<Bound: Width+Int> Whole for IntervalSet<Bound>
+{
+  fn whole() -> IntervalSet<Bound> {
+    let mut res = IntervalSet::empty();
+    res.push(Interval::whole());
+    res
+  }
+}
+
 impl<Bound: Width+Int> Bounded for IntervalSet<Bound>
 {
   type Bound = Bound;
