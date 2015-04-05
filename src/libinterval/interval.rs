@@ -76,9 +76,9 @@ impl<Bound: Width+Int> Interval<Bound>
 impl<Bound: Width+Int> Range<Bound> for Interval<Bound>
 {
   fn new(lb: Bound, ub: Bound) -> Interval<Bound> {
-    assert!(lb >= <Bound as Width>::min_value(),
+    debug_assert!(lb >= <Bound as Width>::min_value(),
       "Lower bound exceeds the minimum value of a bound.");
-    assert!(ub <= <Bound as Width>::max_value(),
+    debug_assert!(ub <= <Bound as Width>::max_value(),
       "Upper bound exceeds the maximum value of a bound.");
     Interval { lb: lb, ub: ub }
   }

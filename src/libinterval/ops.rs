@@ -58,9 +58,9 @@ macro_rules! unsigned_width_impl
       fn width(lower: &$t, upper: &$t) -> $t {
         let lower = *lower;
         let upper = *upper;
-        assert!(upper <= <$t as Width>::max_value(),
+        debug_assert!(upper <= <$t as Width>::max_value(),
           "Width cannot be represented because the value exceeds the maximum value allowed.");
-        assert!(lower <= upper);
+        debug_assert!(lower <= upper);
         upper - lower + 1
       }
     }
@@ -86,9 +86,9 @@ macro_rules! signed_width_impl
       fn width(lower: &$t, upper: &$t) -> $u {
         let lower = *lower;
         let upper = *upper;
-        assert!(lower >= <$t as Width>::min_value(),
+        debug_assert!(lower >= <$t as Width>::min_value(),
           "Width cannot be represented because the value exceeds the minimum value allowed.");
-        assert!(lower <= upper);
+        debug_assert!(lower <= upper);
         let size =
           // Special case for width that could not be computed within the signed int (it could overflow).
           if lower < 0 && upper > 0 {

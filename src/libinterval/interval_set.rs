@@ -48,7 +48,7 @@ impl<Bound: Width+Int> IntervalSet<Bound>
   }
 
   fn front<'a>(&'a self) -> &'a Interval<Bound> {
-    assert!(!self.is_empty(), "Cannot access the first interval of an empty set.");
+    debug_assert!(!self.is_empty(), "Cannot access the first interval of an empty set.");
     &self.intervals[0]
   }
 
@@ -57,7 +57,7 @@ impl<Bound: Width+Int> IntervalSet<Bound>
   }
 
   fn back<'a>(&'a self) -> &'a Interval<Bound> {
-    assert!(!self.is_empty(), "Cannot access the last interval of an empty set.");
+    debug_assert!(!self.is_empty(), "Cannot access the last interval of an empty set.");
     &self.intervals[self.back_idx()]
   }
 
@@ -78,8 +78,8 @@ impl<Bound: Width+Int> IntervalSet<Bound>
   }
 
   fn push(&mut self, x: Interval<Bound>) {
-    assert!(!x.is_empty(), "Cannot push empty interval.");
-    assert!(self.is_empty() || !joinable(self.back(), &x),
+    debug_assert!(!x.is_empty(), "Cannot push empty interval.");
+    debug_assert!(self.is_empty() || !joinable(self.back(), &x),
       "The intervals array must be ordered and intervals must not be joinable. For a safe push, use the union operation.");
 
     self.size = self.size + x.size();
@@ -100,8 +100,8 @@ impl<Bound: Width+Int> IntervalSet<Bound>
       self.push(x);
     }
     else {
-      assert!(!x.is_empty(), "Cannot push empty interval.");
-      assert!(self.back().lower() <= x.lower(),
+      debug_assert!(!x.is_empty(), "Cannot push empty interval.");
+      debug_assert!(self.back().lower() <= x.lower(),
         "This operation is only for pushing interval to the back of the array, possibly overlapping with the last element.");
 
       let joint =
@@ -118,9 +118,9 @@ impl<Bound: Width+Int> IntervalSet<Bound>
   fn find_interval_between(&self, value: &Bound,
     mut left: usize, mut right: usize) -> (usize, usize)
   {
-    assert!(left <= right);
-    assert!(right < self.intervals.len());
-    assert!(self.span_slice(left, right).contains(value));
+    debug_assert!(left <= right);
+    debug_assert!(right < self.intervals.len());
+    debug_assert!(self.span_slice(left, right).contains(value));
 
     let value = *value;
     while left <= right {
@@ -182,7 +182,7 @@ impl<Bound: Width+Int> PartialEq<IntervalSet<Bound>> for IntervalSet<Bound>
 impl<Bound: Width+Int> Range<Bound> for IntervalSet<Bound>
 {
   fn new(lb: Bound, ub: Bound) -> IntervalSet<Bound> {
-    assert!(lb <= ub, "Cannot build empty interval set with an invalid range. Use IntervalSet::empty().");
+    debug_assert!(lb <= ub, "Cannot build empty interval set with an invalid range. Use IntervalSet::empty().");
     let i = Interval::new(lb, ub);
     IntervalSet::from_interval(i)
   }
@@ -202,12 +202,12 @@ impl<Bound: Width+Int> Bounded for IntervalSet<Bound>
   type Bound = Bound;
 
   fn lower(&self) -> Bound {
-    assert!(!self.is_empty(), "Cannot access lower bound on empty interval.");
+    debug_assert!(!self.is_empty(), "Cannot access lower bound on empty interval.");
     self.front().lower()
   }
 
   fn upper(&self) -> Bound {
-    assert!(!self.is_empty(), "Cannot access upper bound on empty interval.");
+    debug_assert!(!self.is_empty(), "Cannot access upper bound on empty interval.");
     self.back().upper()
   }
 }
@@ -262,7 +262,7 @@ fn advance_one<I, F, Item>(a : &mut Peekable<I>, b: &mut Peekable<I>, choose: F)
  F: Fn(&Item, &Item) -> bool,
  Item: Bounded
 {
-  assert!(!a.is_empty() && !b.is_empty());
+  debug_assert!(!a.is_empty() && !b.is_empty());
   let who_advance = {
     let i = a.peek().unwrap();
     let j = b.peek().unwrap();
