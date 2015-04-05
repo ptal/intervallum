@@ -104,6 +104,34 @@ impl<Bound: Width+Int> IntervalSet<Bound>
       self.push(joint);
     }
   }
+
+  // Returns the indexes of the left and right interval of `value`.
+  // If the value is outside `self`, returns None.
+  // If the value is inside one of the interval, the indexes will be equal.
+  fn find_interval(&self, value: &Bound) -> Option<(usize, usize)> {
+    if !self.span().contains(value) {
+      None
+    }
+    else {
+      let value = *value;
+      let mut left = 0;
+      let mut right = self.intervals.len() - 1;
+      while left <= right {
+        let mid_idx = (left + right) / 2;
+        let mid = self.intervals[mid_idx];
+        if mid.lower() > value {
+          right = mid_idx - 1;
+        }
+        else if mid.upper() < value {
+          left = mid_idx + 1;
+        }
+        else {
+          return Some((mid_idx, mid_idx));
+        }
+      }
+      Some((right, left))
+    }
+  }
 }
 
 fn joinable<Bound: Width+Int>(first: &Interval<Bound>, second: &Interval<Bound>) -> bool {
@@ -147,12 +175,12 @@ impl<Bound: Width+Int> Bounded for IntervalSet<Bound>
   type Bound = Bound;
 
   fn lower(&self) -> Bound {
-    assert!(!self.intervals.is_empty(), "Cannot access lower bound on empty interval.");
+    assert!(!self.is_empty(), "Cannot access lower bound on empty interval.");
     self.front().lower()
   }
 
   fn upper(&self) -> Bound {
-    assert!(!self.intervals.is_empty(), "Cannot access upper bound on empty interval.");
+    assert!(!self.is_empty(), "Cannot access upper bound on empty interval.");
     self.back().upper()
   }
 }
@@ -194,26 +222,9 @@ impl<Bound: Width+Int> Cardinality for IntervalSet<Bound>
 impl<Bound: Width+Int> Contains<Bound> for IntervalSet<Bound>
 {
   fn contains(&self, value: &Bound) -> bool {
-    if !self.span().contains(value) {
-      false
-    }
-    else {
-      let value = *value;
-      let mut left = 0;
-      let mut right = self.intervals.len() - 1;
-      while left <= right {
-        let mid_idx = (left + right) / 2;
-        let mid = self.intervals[mid_idx];
-        if mid.lower() > value {
-          right = mid_idx - 1;
-        }
-        else if mid.upper() < value {
-          left = mid_idx + 1;
-        }
-        else {
-          return true;
-        }
-      }
+    if let Some((left, right)) = self.find_interval(value) {
+      left == right
+    } else {
       false
     }
   }
@@ -387,6 +398,53 @@ impl<Bound: Width+Int> Disjoint for IntervalSet<Bound> {
   }
 }
 
+impl<Bound: Width+Int> ShrinkLeft<Bound> for IntervalSet<Bound>
+{
+  fn shrink_left(&self, lb: Bound) -> IntervalSet<Bound> {
+    if let Some((left, _)) = self.find_interval(&lb) {
+      let mut res = IntervalSet::empty();
+      if self.intervals[left].upper() >= lb {
+        res.push(Interval::new(lb, self.intervals[left].upper()));
+      }
+      for i in (left+1)..self.intervals.len() {
+        res.push(self.intervals[i]);
+      }
+      res
+    }
+    else {
+      if self.is_empty() || lb > self.back().upper() {
+        IntervalSet::empty()
+      } else {
+        self.clone()
+      }
+    }
+  }
+}
+
+impl<Bound: Width+Int> ShrinkRight<Bound> for IntervalSet<Bound>
+{
+  fn shrink_right(&self, ub: Bound) -> IntervalSet<Bound> {
+    if let Some((_, right)) = self.find_interval(&ub) {
+      let mut res = IntervalSet::empty();
+      for i in 0..right {
+        res.push(self.intervals[i]);
+      }
+      if self.intervals[right].lower() <= ub {
+        res.push(Interval::new(self.intervals[right].lower(), ub));
+      }
+      res
+    }
+    else {
+      if self.is_empty() || ub < self.front().lower() {
+        IntervalSet::empty()
+      } else {
+        self.clone()
+      }
+    }
+  }
+}
+
+
 #[allow(non_upper_case_globals)]
 #[cfg(test)]
 mod tests {
@@ -439,6 +497,16 @@ mod tests {
     let b = make_interval_set(b);
     let expected = make_interval_set(expected);
     test_result(test_id, &op(&a, &b), &expected);
+  }
+
+
+  fn test_binary_value_op<F>(test_id: String, a: Vec<(i32,i32)>, b: i32, op: F, expected: Vec<(i32,i32)>) where
+    F: Fn(&IntervalSet<i32>, i32) -> IntervalSet<i32>
+  {
+    println!("Info: {}.", test_id);
+    let a = make_interval_set(a);
+    let expected = make_interval_set(expected);
+    test_result(test_id, &op(&a, b), &expected);
   }
 
   fn test_binary_bool_op_sym<F>(test_id: String, a: Vec<(i32,i32)>, b: Vec<(i32,i32)>, op: F, expected: bool) where
@@ -728,6 +796,40 @@ mod tests {
         a.clone(), b.clone(), |x,y| x.overlap(y), expected);
       test_binary_bool_op_sym(format!("test #{} of is_disjoint", id),
         a, b, |x,y| x.is_disjoint(y), !expected);
+    }
+  }
+
+  #[test]
+  fn test_shrink() {
+    let min = <i32 as Width>::min_value();
+    let max = <i32 as Width>::max_value();
+
+    // Second and third args are the test value.
+    // The fourth is the result of a shrink_left and the fifth of a shrink_right.
+    let cases = vec![
+      (1, vec![], 0, vec![], vec![]),
+      (2, vec![(min, max)], 0, vec![(0, max)], vec![(min,0)]),
+      (3, vec![(0,0)], 0, vec![(0,0)], vec![(0,0)]),
+      (4, vec![(0,0)], -1, vec![(0,0)], vec![]),
+      (5, vec![(0,0)], 1, vec![], vec![(0,0)]),
+      (6, vec![(-5,5)], 0, vec![(0,5)], vec![(-5,0)]),
+      (7, vec![(-5,5)], -5, vec![(-5,5)], vec![(-5,-5)]),
+      (8, vec![(-5,5)], 5, vec![(5,5)], vec![(-5,5)]),
+      (9, vec![(-5,-1),(1,5)], 0, vec![(1,5)], vec![(-5,-1)]),
+      (10, vec![(-5,-1),(1,5)], 1, vec![(1,5)], vec![(-5,-1),(1,1)]),
+      (11, vec![(-5,-1),(1,5)], -1, vec![(-1,-1),(1,5)], vec![(-5,-1)]),
+      (12, vec![(min,-1),(1,5)], min, vec![(min,-1),(1,5)], vec![(min,min)]),
+      (13, vec![(min,-1),(1,5)], max, vec![], vec![(min,-1),(1,5)]),
+      (14, vec![(-5,-1),(1,max)], max, vec![(max, max)], vec![(-5,-1),(1,max)]),
+      (15, vec![(min,-1),(1,max)], 0, vec![(1, max)], vec![(min, -1)]),
+      (16, vec![(-5,-3),(0,1),(3,5)], 1, vec![(1,1),(3,5)], vec![(-5,-3),(0,1)])
+    ];
+
+    for (id, a, v, expected_left, expected_right) in cases {
+      test_binary_value_op(format!("test #{} of shrink_left", id),
+        a.clone(), v, |x, v| x.shrink_left(v), expected_left);
+      test_binary_value_op(format!("test #{} of shrink_right", id),
+        a, v, |x, v| x.shrink_right(v), expected_right);
     }
   }
 }
