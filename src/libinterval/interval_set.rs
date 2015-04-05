@@ -23,6 +23,8 @@ use interval::Interval;
 use ncollections::ops::*;
 use ops::*;
 use std::iter::{Peekable, IntoIterator};
+use std::fmt::{Formatter, Display, Error};
+use std::result::fold;
 
 use std::num::Int;
 
@@ -444,6 +446,18 @@ impl<Bound: Width+Int> ShrinkRight<Bound> for IntervalSet<Bound>
   }
 }
 
+impl<Bound: Display+Width+Int> Display for IntervalSet<Bound> where
+ <Bound as Width>::Output: Display
+{
+  fn fmt(&self, formatter: &mut Formatter) -> Result<(), Error> {
+    formatter.write_fmt(format_args!("{}{}", self.size(), "#{"))
+    .and_then(|_| fold(self.intervals.iter().map(|i|
+      formatter.write_fmt(format_args!("{}", i))), (), |_,_|()))
+    .and_then(|_|
+      formatter.write_str("}"))
+  }
+}
+
 
 #[allow(non_upper_case_globals)]
 #[cfg(test)]
@@ -456,11 +470,11 @@ mod tests {
   fn test_inside_outside(is: IntervalSet<i32>, inside: Vec<i32>, outside: Vec<i32>) {
     for i in &inside {
       assert!(is.contains(i),
-        format!("{} is not contained inside {:?}, but it should.", i, is));
+        format!("{} is not contained inside {}, but it should.", i, is));
     }
     for i in &outside {
       assert!(!is.contains(i),
-        format!("{} is contained inside {:?}, but it should not.", i, is));
+        format!("{} is contained inside {}, but it should not.", i, is));
     }
   }
 
@@ -479,7 +493,7 @@ mod tests {
 
   fn test_result(test_id: String, result: &IntervalSet<i32>, expected: &IntervalSet<i32>) {
     assert!(result.intervals == expected.intervals,
-      format!("{} | {:?} is different from the expected value: {:?}.", test_id, result, expected));
+      format!("{} | {} is different from the expected value: {}.", test_id, result, expected));
   }
 
   fn test_binary_op_sym<F>(test_id: String, a: Vec<(i32,i32)>, b: Vec<(i32,i32)>, op: F, expected: Vec<(i32,i32)>) where
