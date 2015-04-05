@@ -8,7 +8,7 @@ description = "Generic interval and interval set library."
 documentation = "http://www.rust-ci.org/ptal/rust-interval/doc/interval/"
 repository = "https://github.com/ptal/rust-interval"
 readme = "README.md"
-keywords = ["interval", "math", "data structure", "interval set"]
+keywords = ["interval", "math", "data-structure", "containers", "interval-set"]
 license = "Apache-2.0"
 
 [lib]
