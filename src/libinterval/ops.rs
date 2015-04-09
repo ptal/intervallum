@@ -14,7 +14,7 @@
 
 //! Interval and bound specific operations.
 
-use std::num::Int;
+use num::{Bounded, Unsigned};
 
 pub trait Hull<RHS = Self> {
   type Output;
@@ -30,8 +30,8 @@ pub trait Whole {
 }
 
 /// Limit of a bound for which the distance between `min_value()` and `max_value()` can be represented in the type `Output`.
-pub trait Width {
-  type Output: Int;
+pub trait Width : Ord+Clone {
+  type Output: Unsigned+PartialOrd+Clone;
 
   fn max_value() -> Self;
   fn min_value() -> Self;
@@ -48,11 +48,11 @@ macro_rules! unsigned_width_impl
       type Output = $t;
 
       fn max_value() -> $t {
-        <$t as Int>::max_value() - 1
+        <$t as Bounded>::max_value() - 1
       }
 
       fn min_value() -> $t {
-        <$t as Int>::min_value()
+        <$t as Bounded>::min_value()
       }
 
       fn width(lower: &$t, upper: &$t) -> $t {
@@ -76,11 +76,11 @@ macro_rules! signed_width_impl
       type Output = $u;
 
       fn max_value() -> $t {
-        <$t as Int>::max_value()
+        <$t as Bounded>::max_value()
       }
 
       fn min_value() -> $t {
-        <$t as Int>::min_value() + 1
+        <$t as Bounded>::min_value() + 1
       }
 
       fn width(lower: &$t, upper: &$t) -> $u {

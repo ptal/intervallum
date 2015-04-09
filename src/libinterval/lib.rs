@@ -38,6 +38,7 @@
 #![feature(core, collections, std_misc)]
 
 extern crate collections;
+extern crate num;
 
 pub mod interval;
 pub mod interval_set;

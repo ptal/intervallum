@@ -21,9 +21,9 @@ use std::collections::hash_state::HashState;
 use std::hash::Hash;
 use std::iter::FromIterator;
 use std::default::Default;
-use std::num::Int;
 use ncollections::{HashSet, BTreeSet, BitSet, EnumSet};
 use std::ops::Deref;
+use num::{One, Zero, Unsigned};
 
 // Basic set operations
 
@@ -178,15 +178,15 @@ pub trait ShrinkRight<Bound> {
 // Cardinality
 
 pub trait Cardinality {
-  type Size : Int;
+  type Size : Unsigned;
   fn size(&self) -> Self::Size;
 
   fn is_singleton(&self) -> bool {
-    self.size() == <Self::Size as Int>::one()
+    self.size() == <Self::Size as One>::one()
   }
 
   fn is_empty(&self) -> bool {
-    self.size() == <Self::Size as Int>::zero()
+    self.size().is_zero()
   }
 }
 

@@ -42,8 +42,8 @@ use ncollections::ops::*;
 use ops::*;
 
 use std::cmp::{min, max};
-use std::num::Int;
 use std::fmt::{Formatter, Display, Error};
+use num::{Zero, Num};
 
 /// Closed interval (endpoints included).
 #[derive(Debug, Copy, Clone)]
@@ -52,9 +52,9 @@ pub struct Interval<Bound> {
   ub: Bound
 }
 
-impl<Bound: Width+Int> Eq for Interval<Bound> {}
+impl<Bound: Width+Num> Eq for Interval<Bound> {}
 
-impl<Bound: Width+Int> PartialEq<Interval<Bound>> for Interval<Bound>
+impl<Bound: Width+Num> PartialEq<Interval<Bound>> for Interval<Bound>
 {
   fn eq(&self, other: &Interval<Bound>) -> bool {
     if self.is_empty() && other.is_empty() { true }
@@ -62,7 +62,7 @@ impl<Bound: Width+Int> PartialEq<Interval<Bound>> for Interval<Bound>
   }
 }
 
-impl<Bound: Width+Int> Interval<Bound>
+impl<Bound: Width+Num> Interval<Bound>
 {
   fn min_lb(ub: Bound) -> Interval<Bound> {
     Interval::new(<Bound as Width>::min_value(), ub)
@@ -73,7 +73,7 @@ impl<Bound: Width+Int> Interval<Bound>
   }
 }
 
-impl<Bound: Width+Int> Range<Bound> for Interval<Bound>
+impl<Bound: Width+Num> Range<Bound> for Interval<Bound>
 {
   fn new(lb: Bound, ub: Bound) -> Interval<Bound> {
     debug_assert!(lb >= <Bound as Width>::min_value(),
@@ -84,41 +84,41 @@ impl<Bound: Width+Int> Range<Bound> for Interval<Bound>
   }
 }
 
-impl<Bound: Int> Bounded for Interval<Bound>
+impl<Bound: Num+PartialOrd+Clone> Bounded for Interval<Bound>
 {
   type Bound = Bound;
 
   fn lower(&self) -> Bound {
-    self.lb
+    self.lb.clone()
   }
 
   fn upper(&self) -> Bound {
-    self.ub
+    self.ub.clone()
   }
 }
 
-impl <Bound: Width+Int> Singleton<Bound> for Interval<Bound>
+impl <Bound: Width+Num> Singleton<Bound> for Interval<Bound>
 {
   fn singleton(x: Bound) -> Interval<Bound> {
-    Interval::new(x, x)
+    Interval::new(x.clone(), x)
   }
 }
 
-impl<Bound: Width+Int> Empty for Interval<Bound>
+impl<Bound: Width+Num> Empty for Interval<Bound>
 {
   fn empty() -> Interval<Bound> {
     Interval::new(Bound::one(), Bound::zero())
   }
 }
 
-impl<Bound: Width+Int> Whole for Interval<Bound>
+impl<Bound: Width+Num> Whole for Interval<Bound>
 {
   fn whole() -> Interval<Bound> {
     Interval::new(<Bound as Width>::min_value(), <Bound as Width>::max_value())
   }
 }
 
-impl<Bound: Width+Int> Cardinality for Interval<Bound>
+impl<Bound: Width+Num> Cardinality for Interval<Bound>
 {
   type Size = <Bound as Width>::Output;
   fn size(&self) -> <Bound as Width>::Output {
@@ -137,7 +137,7 @@ impl<Bound: Width+Int> Cardinality for Interval<Bound>
   }
 }
 
-impl<Bound: Width+Int> Disjoint for Interval<Bound>
+impl<Bound: Width+Num> Disjoint for Interval<Bound>
 {
   fn is_disjoint(&self, other: &Interval<Bound>) -> bool {
        self.is_empty() || other.is_empty()
@@ -145,37 +145,36 @@ impl<Bound: Width+Int> Disjoint for Interval<Bound>
   }
 }
 
-impl<Bound: Int> Disjoint<Bound> for Interval<Bound>
+impl<Bound: Num+Ord> Disjoint<Bound> for Interval<Bound>
 {
   fn is_disjoint(&self, value: &Bound) -> bool {
     !self.contains(value)
   }
 }
 
-impl<Bound: Width+Int> Hull for Interval<Bound>
+impl<Bound: Width+Num> Hull for Interval<Bound>
 {
   type Output = Interval<Bound>;
   fn hull(&self, other: &Interval<Bound>) -> Interval<Bound> {
-    if self.is_empty() { *other }
-    else if other.is_empty() { *self }
+    if self.is_empty() { other.clone() }
+    else if other.is_empty() { self.clone() }
     else {
       Interval::new(
-        min(self.lb, other.lb),
-        max(self.ub, other.ub)
+        min(self.lower(), other.lower()),
+        max(self.upper(), other.upper())
       )
     }
   }
 }
 
-impl<Bound: Int> Contains<Bound> for Interval<Bound>
+impl<Bound: Num+Ord> Contains<Bound> for Interval<Bound>
 {
   fn contains(&self, value: &Bound) -> bool {
-    let value = *value;
-    value >= self.lb && value <= self.ub
+    value >= &self.lb && value <= &self.ub
   }
 }
 
-impl<Bound: Width+Int> Subset for Interval<Bound>
+impl<Bound: Width+Num> Subset for Interval<Bound>
 {
   fn is_subset(&self, other: &Interval<Bound>) -> bool {
     if self.is_empty() { true }
@@ -185,7 +184,7 @@ impl<Bound: Width+Int> Subset for Interval<Bound>
   }
 }
 
-impl<Bound: Width+Int> ProperSubset for Interval<Bound>
+impl<Bound: Width+Num> ProperSubset for Interval<Bound>
 {
   fn is_proper_subset(&self, other: &Interval<Bound>) -> bool {
     self.is_subset(other) && self != other
@@ -193,30 +192,30 @@ impl<Bound: Width+Int> ProperSubset for Interval<Bound>
 }
 
 
-impl<Bound: Width+Int> Overlap for Interval<Bound>
+impl<Bound: Width+Num> Overlap for Interval<Bound>
 {
   fn overlap(&self, other: &Interval<Bound>) -> bool {
     !self.is_disjoint(other)
   }
 }
 
-impl<Bound: Width+Int> Intersection for Interval<Bound>
+impl<Bound: Width+Num> Intersection for Interval<Bound>
 {
   type Output = Interval<Bound>;
   fn intersection(&self, other: &Interval<Bound>) -> Interval<Bound> {
     Interval::new(
-      max(self.lb, other.lb),
-      min(self.ub, other.ub)
+      max(self.lower(), other.lower()),
+      min(self.upper(), other.upper())
     )
   }
 }
 
-impl<Bound: Width+Int> Intersection<Bound> for Interval<Bound>
+impl<Bound: Width+Num> Intersection<Bound> for Interval<Bound>
 {
   type Output = Interval<Bound>;
   fn intersection(&self, value: &Bound) -> Interval<Bound> {
     if self.contains(value) {
-      Interval::singleton(*value)
+      Interval::singleton(value.clone())
     }
     else {
       Interval::empty()
@@ -224,7 +223,7 @@ impl<Bound: Width+Int> Intersection<Bound> for Interval<Bound>
   }
 }
 
-impl<Bound: Width+Int> Difference for Interval<Bound>
+impl<Bound: Width+Num> Difference for Interval<Bound>
 {
   type Output = Interval<Bound>;
   // A - B is equivalent to A /\ ~B
@@ -236,31 +235,31 @@ impl<Bound: Width+Int> Difference for Interval<Bound>
   //    \/
   //      A /\ [B.ub+1, inf]
   fn difference(&self, other: &Interval<Bound>) -> Interval<Bound> {
-    let left = self.intersection(&Interval::min_lb(other.lb - Bound::one()));
-    let right = self.intersection(&Interval::max_ub(other.ub + Bound::one()));
+    let left = self.intersection(&Interval::min_lb(other.lower() - Bound::one()));
+    let right = self.intersection(&Interval::max_ub(other.upper() + Bound::one()));
     left.hull(&right)
   }
 }
 
-impl<Bound: Int> Difference<Bound> for Interval<Bound>
+impl<Bound: Num+Clone> Difference<Bound> for Interval<Bound>
 {
   type Output = Interval<Bound>;
   fn difference(&self, value: &Bound) -> Interval<Bound> {
-    let mut this = *self;
-    if *value == this.lb {
+    let mut this = self.clone();
+    if value == &this.lb {
       this.lb = this.lb + Bound::one();
     }
-    else if *value == this.ub {
+    else if value == &this.ub {
       this.ub = this.ub - Bound::one();
     }
     this
   }
 }
 
-impl<Bound: Int> ShrinkLeft<Bound> for Interval<Bound>
+impl<Bound: Num+Ord+Clone> ShrinkLeft<Bound> for Interval<Bound>
 {
   fn shrink_left(&self, lb: Bound) -> Interval<Bound> {
-    let mut this = *self;
+    let mut this = self.clone();
     if lb > this.lb {
       this.lb = lb;
     }
@@ -268,10 +267,10 @@ impl<Bound: Int> ShrinkLeft<Bound> for Interval<Bound>
   }
 }
 
-impl<Bound: Int> ShrinkRight<Bound> for Interval<Bound>
+impl<Bound: Num+Ord+Clone> ShrinkRight<Bound> for Interval<Bound>
 {
   fn shrink_right(&self, ub: Bound) -> Interval<Bound> {
-    let mut this = *self;
+    let mut this = self.clone();
     if ub < this.ub {
       this.ub = ub;
     }
@@ -279,7 +278,7 @@ impl<Bound: Int> ShrinkRight<Bound> for Interval<Bound>
   }
 }
 
-impl<Bound: Display+Width+Int> Display for Interval<Bound>
+impl<Bound: Display+Width+Num> Display for Interval<Bound>
 {
   fn fmt(&self, formatter: &mut Formatter) -> Result<(), Error> {
     if self.is_empty() {
@@ -298,20 +297,20 @@ impl<Bound> ToInterval<Bound> for Interval<Bound> {
   fn to_interval(self) -> Interval<Bound> { self }
 }
 
-impl<Bound: Width+Int> ToInterval<Bound> for (Bound, Bound) {
+impl<Bound: Width+Num> ToInterval<Bound> for (Bound, Bound) {
   fn to_interval(self) -> Interval<Bound> {
     let (a, b) = self;
     Interval::new(a, b)
   }
 }
 
-impl<Bound: Width+Int> ToInterval<Bound> for () {
+impl<Bound: Width+Num> ToInterval<Bound> for () {
   fn to_interval(self) -> Interval<Bound> {
     Interval::empty()
   }
 }
 
-impl<Bound: Width+Int> ToInterval<Bound> for Bound {
+impl<Bound: Width+Num> ToInterval<Bound> for Bound {
   fn to_interval(self) -> Interval<Bound> {
     Interval::singleton(self)
   }

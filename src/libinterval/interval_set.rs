@@ -26,7 +26,7 @@ use std::iter::{Peekable, IntoIterator};
 use std::fmt::{Formatter, Display, Error};
 use std::result::fold;
 
-use std::num::Int;
+use num::{Zero, One, Num};
 
 #[derive(Debug, Clone)]
 pub struct IntervalSet<Bound: Width> {
@@ -34,16 +34,18 @@ pub struct IntervalSet<Bound: Width> {
   size: Bound::Output
 }
 
-impl<Bound: Width+Int> IntervalSet<Bound>
+impl<Bound: Width+Num> IntervalSet<Bound> where
+   <Bound as Width>::Output: Clone
 {
   pub fn interval_count(&self) -> usize {
     self.intervals.len()
   }
 
   fn from_interval(i: Interval<Bound>) -> IntervalSet<Bound> {
+    let size = i.size().clone();
     IntervalSet {
       intervals: vec![i],
-      size: i.size()
+      size: size
     }
   }
 
@@ -82,13 +84,13 @@ impl<Bound: Width+Int> IntervalSet<Bound>
     debug_assert!(self.is_empty() || !joinable(self.back(), &x),
       "The intervals array must be ordered and intervals must not be joinable. For a safe push, use the union operation.");
 
-    self.size = self.size + x.size();
+    self.size = self.size.clone() + x.size();
     self.intervals.push(x);
   }
 
   fn pop(&mut self) -> Option<Interval<Bound>> {
     if let Some(x) = self.intervals.pop() {
-      self.size = self.size - x.size();
+      self.size = self.size.clone() - x.size();
       Some(x)
     } else {
       None
@@ -122,14 +124,13 @@ impl<Bound: Width+Int> IntervalSet<Bound>
     debug_assert!(right < self.intervals.len());
     debug_assert!(self.span_slice(left, right).contains(value));
 
-    let value = *value;
     while left <= right {
       let mid_idx = (left + right) / 2;
-      let mid = self.intervals[mid_idx];
-      if mid.lower() > value {
+      let mid = &self.intervals[mid_idx];
+      if &mid.lower() > value {
         right = mid_idx - 1;
       }
-      else if mid.upper() < value {
+      else if &mid.upper() < value {
         left = mid_idx + 1;
       }
       else {
@@ -152,11 +153,11 @@ impl<Bound: Width+Int> IntervalSet<Bound>
   }
 }
 
-fn joinable<Bound: Width+Int>(first: &Interval<Bound>, second: &Interval<Bound>) -> bool {
+fn joinable<Bound: Width+Num>(first: &Interval<Bound>, second: &Interval<Bound>) -> bool {
   first.upper() + Bound::one() >= second.lower()
 }
 
-impl<Bound: Width+Int> Extend<Interval<Bound>> for IntervalSet<Bound>
+impl<Bound: Width+Num> Extend<Interval<Bound>> for IntervalSet<Bound>
 {
   fn extend<I>(&mut self, iterable: I) where
    I: IntoIterator<Item=Interval<Bound>>
@@ -167,9 +168,9 @@ impl<Bound: Width+Int> Extend<Interval<Bound>> for IntervalSet<Bound>
   }
 }
 
-impl<Bound: Width+Int> Eq for IntervalSet<Bound> {}
+impl<Bound: Width+Num> Eq for IntervalSet<Bound> {}
 
-impl<Bound: Width+Int> PartialEq<IntervalSet<Bound>> for IntervalSet<Bound>
+impl<Bound: Width+Num> PartialEq<IntervalSet<Bound>> for IntervalSet<Bound>
 {
   fn eq(&self, other: &IntervalSet<Bound>) -> bool {
     if self.size() != other.size() { false }
@@ -179,7 +180,7 @@ impl<Bound: Width+Int> PartialEq<IntervalSet<Bound>> for IntervalSet<Bound>
   }
 }
 
-impl<Bound: Width+Int> Range<Bound> for IntervalSet<Bound>
+impl<Bound: Width+Num> Range<Bound> for IntervalSet<Bound>
 {
   fn new(lb: Bound, ub: Bound) -> IntervalSet<Bound> {
     debug_assert!(lb <= ub, "Cannot build empty interval set with an invalid range. Use IntervalSet::empty().");
@@ -188,7 +189,7 @@ impl<Bound: Width+Int> Range<Bound> for IntervalSet<Bound>
   }
 }
 
-impl<Bound: Width+Int> Whole for IntervalSet<Bound>
+impl<Bound: Width+Num> Whole for IntervalSet<Bound>
 {
   fn whole() -> IntervalSet<Bound> {
     let mut res = IntervalSet::empty();
@@ -197,7 +198,7 @@ impl<Bound: Width+Int> Whole for IntervalSet<Bound>
   }
 }
 
-impl<Bound: Width+Int> Bounded for IntervalSet<Bound>
+impl<Bound: Width+Num+PartialOrd> Bounded for IntervalSet<Bound>
 {
   type Bound = Bound;
 
@@ -212,14 +213,14 @@ impl<Bound: Width+Int> Bounded for IntervalSet<Bound>
   }
 }
 
-impl <Bound: Width+Int> Singleton<Bound> for IntervalSet<Bound>
+impl <Bound: Width+Num> Singleton<Bound> for IntervalSet<Bound>
 {
   fn singleton(x: Bound) -> IntervalSet<Bound> {
-    IntervalSet::new(x, x)
+    IntervalSet::new(x.clone(), x)
   }
 }
 
-impl<Bound: Width+Int> Empty for IntervalSet<Bound>
+impl<Bound: Width+Num> Empty for IntervalSet<Bound>
 {
   fn empty() -> IntervalSet<Bound> {
     IntervalSet {
@@ -229,12 +230,12 @@ impl<Bound: Width+Int> Empty for IntervalSet<Bound>
   }
 }
 
-impl<Bound: Width+Int> Cardinality for IntervalSet<Bound>
+impl<Bound: Width+Num> Cardinality for IntervalSet<Bound>
 {
   type Size = <Bound as Width>::Output;
 
   fn size(&self) -> <Bound as Width>::Output {
-    self.size
+    self.size.clone()
   }
 
   fn is_singleton(&self) -> bool {
@@ -246,7 +247,7 @@ impl<Bound: Width+Int> Cardinality for IntervalSet<Bound>
   }
 }
 
-impl<Bound: Width+Int> Contains<Bound> for IntervalSet<Bound>
+impl<Bound: Width+Num> Contains<Bound> for IntervalSet<Bound>
 {
   fn contains(&self, value: &Bound) -> bool {
     if let Some((left, right)) = self.find_interval(value) {
@@ -289,7 +290,7 @@ fn advance_lub<I, Item>(a : &mut Peekable<I>, b: &mut Peekable<I>) -> Item where
 
 fn from_lower_iterator<I, Bound>(a : &mut Peekable<I>, b: &mut Peekable<I>) -> IntervalSet<Bound> where
  I: Iterator<Item=Interval<Bound>>,
- Bound: Width+Int
+ Bound: Width+Num
 {
   if a.is_empty() || b.is_empty() {
     IntervalSet::empty()
@@ -299,7 +300,7 @@ fn from_lower_iterator<I, Bound>(a : &mut Peekable<I>, b: &mut Peekable<I>) -> I
   }
 }
 
-impl<Bound: Width+Int> Union for IntervalSet<Bound>
+impl<Bound: Width+Num> Union for IntervalSet<Bound>
 {
   type Output = IntervalSet<Bound>;
 
@@ -338,7 +339,7 @@ fn advance_to_first_overlapping<I, Item>(a : &mut Peekable<I>, b: &mut Peekable<
   false
 }
 
-impl<Bound: Width+Int> Intersection for IntervalSet<Bound>
+impl<Bound: Width+Num> Intersection for IntervalSet<Bound>
 {
   type Output = IntervalSet<Bound>;
 
@@ -358,21 +359,21 @@ impl<Bound: Width+Int> Intersection for IntervalSet<Bound>
   }
 }
 
-fn push_left_complement<Bound: Width+Int>(x: &Interval<Bound>, res: &mut IntervalSet<Bound>) {
+fn push_left_complement<Bound: Width+Num>(x: &Interval<Bound>, res: &mut IntervalSet<Bound>) {
   let min = <Bound as Width>::min_value();
   if x.lower() != min {
     res.push(Interval::new(min, x.lower() - Bound::one()));
   }
 }
 
-fn push_right_complement<Bound: Width+Int>(x: &Interval<Bound>, res: &mut IntervalSet<Bound>) {
+fn push_right_complement<Bound: Width+Num>(x: &Interval<Bound>, res: &mut IntervalSet<Bound>) {
   let max = <Bound as Width>::max_value();
   if x.upper() != max {
     res.push(Interval::new(x.upper() + Bound::one(), max));
   }
 }
 
-impl<Bound: Width+Int> Complement for IntervalSet<Bound>
+impl<Bound: Width+Num> Complement for IntervalSet<Bound>
 {
   fn complement(&self) -> IntervalSet<Bound> {
     let mut res = IntervalSet::empty();
@@ -385,7 +386,9 @@ impl<Bound: Width+Int> Complement for IntervalSet<Bound>
       for i in 1..self.intervals.len() {
         let current = &self.intervals[i];
         let previous = &self.intervals[i-1];
-        res.push(Interval::new(previous.upper() + one, current.lower() - one));
+        res.push(Interval::new(
+          previous.upper() + one.clone(),
+          current.lower() - one.clone()));
       }
       push_right_complement(self.back(), &mut res);
     }
@@ -393,7 +396,7 @@ impl<Bound: Width+Int> Complement for IntervalSet<Bound>
   }
 }
 
-impl<Bound: Width+Int> Difference for IntervalSet<Bound> {
+impl<Bound: Width+Num> Difference for IntervalSet<Bound> {
   type Output = IntervalSet<Bound>;
 
   fn difference(&self, rhs: &IntervalSet<Bound>) -> IntervalSet<Bound> {
@@ -401,7 +404,7 @@ impl<Bound: Width+Int> Difference for IntervalSet<Bound> {
   }
 }
 
-impl<Bound: Width+Int> SymmetricDifference for IntervalSet<Bound> {
+impl<Bound: Width+Num> SymmetricDifference for IntervalSet<Bound> {
   type Output = IntervalSet<Bound>;
 
   fn symmetric_difference(&self, rhs: &IntervalSet<Bound>) -> IntervalSet<Bound> {
@@ -411,7 +414,7 @@ impl<Bound: Width+Int> SymmetricDifference for IntervalSet<Bound> {
   }
 }
 
-impl<Bound: Width+Int> Overlap for IntervalSet<Bound> {
+impl<Bound: Width+Num> Overlap for IntervalSet<Bound> {
   fn overlap(&self, rhs: &IntervalSet<Bound>) -> bool {
     let mut a = &mut self.intervals.iter().cloned().peekable();
     let mut b = &mut rhs.intervals.iter().cloned().peekable();
@@ -419,13 +422,14 @@ impl<Bound: Width+Int> Overlap for IntervalSet<Bound> {
   }
 }
 
-impl<Bound: Width+Int> Disjoint for IntervalSet<Bound> {
+impl<Bound: Width+Num> Disjoint for IntervalSet<Bound> {
   fn is_disjoint(&self, rhs: &IntervalSet<Bound>) -> bool {
     !self.overlap(rhs)
   }
 }
 
-impl<Bound: Width+Int> ShrinkLeft<Bound> for IntervalSet<Bound>
+impl<Bound: Width+Num> ShrinkLeft<Bound> for IntervalSet<Bound> where
+  <Bound as Width>::Output: Clone
 {
   fn shrink_left(&self, lb: Bound) -> IntervalSet<Bound> {
     if let Some((left, _)) = self.find_interval(&lb) {
@@ -434,7 +438,7 @@ impl<Bound: Width+Int> ShrinkLeft<Bound> for IntervalSet<Bound>
         res.push(Interval::new(lb, self.intervals[left].upper()));
       }
       for i in (left+1)..self.intervals.len() {
-        res.push(self.intervals[i]);
+        res.push(self.intervals[i].clone());
       }
       res
     }
@@ -448,13 +452,14 @@ impl<Bound: Width+Int> ShrinkLeft<Bound> for IntervalSet<Bound>
   }
 }
 
-impl<Bound: Width+Int> ShrinkRight<Bound> for IntervalSet<Bound>
+impl<Bound: Width+Num> ShrinkRight<Bound> for IntervalSet<Bound> where
+  <Bound as Width>::Output: Clone
 {
   fn shrink_right(&self, ub: Bound) -> IntervalSet<Bound> {
     if let Some((_, right)) = self.find_interval(&ub) {
       let mut res = IntervalSet::empty();
       for i in 0..right {
-        res.push(self.intervals[i]);
+        res.push(self.intervals[i].clone());
       }
       if self.intervals[right].lower() <= ub {
         res.push(Interval::new(self.intervals[right].lower(), ub));
@@ -471,7 +476,7 @@ impl<Bound: Width+Int> ShrinkRight<Bound> for IntervalSet<Bound>
   }
 }
 
-impl<Bound: Width+Int> Subset for IntervalSet<Bound>
+impl<Bound: Width+Num> Subset for IntervalSet<Bound>
 {
   fn is_subset(&self, other: &IntervalSet<Bound>) -> bool {
     if self.is_empty() { true }
@@ -493,14 +498,14 @@ impl<Bound: Width+Int> Subset for IntervalSet<Bound>
   }
 }
 
-impl<Bound: Width+Int> ProperSubset for IntervalSet<Bound>
+impl<Bound: Width+Num> ProperSubset for IntervalSet<Bound>
 {
   fn is_proper_subset(&self, other: &IntervalSet<Bound>) -> bool {
     self.is_subset(other) && self.size() != other.size()
   }
 }
 
-impl<Bound: Display+Width+Int> Display for IntervalSet<Bound> where
+impl<Bound: Display+Width+Num> Display for IntervalSet<Bound> where
  <Bound as Width>::Output: Display
 {
   fn fmt(&self, formatter: &mut Formatter) -> Result<(), Error> {
