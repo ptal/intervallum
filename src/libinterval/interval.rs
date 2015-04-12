@@ -14,7 +14,7 @@
 
 //! Closed and bounded generic interval.
 //!
-//! The bounds of the interval `[i..j]` represents the set of all elements `x` where `i <= x <= j`. Only interval with bound types implementing `Int` is currently available.
+//! The bounds of the interval `[i..j]` represents the set of all elements `x` where `i <= x <= j`. Only interval with bound types implementing `Num` and `Width` is currently available.
 //!
 //! Most of the operations in `ncollections::ops::*` are implemented. Intervals specific operations, proposed in `ops::*`, are also implemented. There is no `union` operation since this interval representation is not precise enough, thus an union could result in an over-approximation. Consider `[1..2] U [5..6]`, the only possible representation is `[1..6]` which is not exact by the definition of the set union. So this operation is named `hull`.
 //!
