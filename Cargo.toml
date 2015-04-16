@@ -1,11 +1,11 @@
 [package]
 
 name = "intervallum"
-version = "0.2.0"
+version = "0.2.1"
 authors = [ "Pierre Talbot <ptalbot@hyc.io>" ]
 
 description = "Generic interval and interval set library."
-documentation = "http://www.rust-ci.org/ptal/rust-interval/doc/interval/"
+documentation = "hyc.io/intervallum"
 repository = "https://github.com/ptal/rust-interval"
 readme = "README.md"
 keywords = ["interval", "math", "data-structure", "containers", "interval-set"]

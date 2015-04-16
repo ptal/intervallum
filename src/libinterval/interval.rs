@@ -14,9 +14,9 @@
 
 //! Closed and bounded generic interval.
 //!
-//! The bounds of the interval `[i..j]` represents the set of all elements `x` where `i <= x <= j`. Only interval with bound types implementing `Num` and `Width` is currently available.
+//! Let `D` be an ordered set and `{i,j} ∈ D`. The interval `I` whose bounds are `{i,j}` is defined as `I = {x ∈ D | i <= x <= j}` and is denoted as `[i..j]`. Only interval with bound types implementing `Num` and `Width` is currently available.
 //!
-//! Most of the operations in `ncollections::ops::*` are implemented. Intervals specific operations, proposed in `ops::*`, are also implemented. There is no `union` operation since this interval representation is not precise enough, thus an union could result in an over-approximation. Consider `[1..2] U [5..6]`, the only possible representation is `[1..6]` which is not exact by the definition of the set union. So this operation is named `hull`.
+//! Most of the operations in `ncollections::ops::*` are implemented. Intervals specific operations, proposed in `ops::*`, are also implemented. There is no `union` operation since this interval representation is not precise enough, and so an union could be over-approximated. For example, consider `[1..2] U [5..6]`, the only possible representation is `[1..6]` which is not exact by the definition of union of sets. However, this operation exists and is named `hull`.
 //!
 //! # Examples
 //!
@@ -190,7 +190,6 @@ impl<Bound: Width+Num> ProperSubset for Interval<Bound>
     self.is_subset(other) && self != other
   }
 }
-
 
 impl<Bound: Width+Num> Overlap for Interval<Bound>
 {
