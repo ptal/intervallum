@@ -32,7 +32,6 @@
 //!
 
 #![crate_name = "interval"]
-#![unstable]
 #![crate_type = "dylib"]
 
 #![feature(core, collections, std_misc)]
