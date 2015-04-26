@@ -40,6 +40,7 @@
 //! assert_eq!(*(symmetric_difference(&a, &b)), *res);
 //! ```
 
+mod macros;
 pub mod hash_set;
 pub mod btree_set;
 pub mod enum_set;

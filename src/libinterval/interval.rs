@@ -278,51 +278,6 @@ impl<Bound: Num+Ord+Clone> ShrinkRight<Bound> for Interval<Bound>
   }
 }
 
-// Inspired by the macros from the BigUint impl. (doc.rust-lang.org/num/src/num/bigint.rs.html#235-280)
-macro_rules! forward_val_val_binop {
-  (impl $imp:ident for $res:ty, $method:ident) => {
-    impl<Bound: Num+Width> $imp<$res> for $res {
-      type Output = $res;
-
-      fn $method(self, other: $res) -> $res {
-        (&self).$method(&other)
-      }
-    }
-  }
-}
-
-macro_rules! forward_ref_val_binop {
-  (impl $imp:ident for $res:ty, $method:ident) => {
-    impl<'a, Bound: Num+Width> $imp<$res> for &'a $res {
-      type Output = $res;
-
-      fn $method(self, other: $res) -> $res {
-        self.$method(&other)
-      }
-    }
-  }
-}
-
-macro_rules! forward_val_ref_binop {
-  (impl $imp:ident for $res:ty, $method:ident) => {
-    impl<'b, Bound: Num+Width> $imp<&'b $res> for $res {
-      type Output = $res;
-
-      fn $method(self, other: &$res) -> $res {
-        (&self).$method(other)
-      }
-    }
-  }
-}
-
-macro_rules! forward_all_binop {
-  (impl $imp:ident for $res:ty, $method:ident) => {
-    forward_val_val_binop!(impl $imp for $res, $method);
-    forward_ref_val_binop!(impl $imp for $res, $method);
-    forward_val_ref_binop!(impl $imp for $res, $method);
-  };
-}
-
 forward_all_binop!(impl Add for Interval<Bound>, add);
 
 impl<'a, 'b, Bound: Num+Width> Add<&'b Interval<Bound>> for &'a Interval<Bound> {
