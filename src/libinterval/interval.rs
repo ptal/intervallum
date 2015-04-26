@@ -356,6 +356,7 @@ forward_all_binop!(impl Mul for Interval<Bound>, mul);
 impl<'a, 'b, Bound: Num+Width> Mul<&'b Interval<Bound>> for &'a Interval<Bound> {
   type Output = Interval<Bound>;
 
+  // Caution: Consider `[0,1] * [3,5]`, the result `[0,5]` is an over-approximation.
   fn mul(self, other: &Interval<Bound>) -> Interval<Bound> {
     if self.is_empty() || other.is_empty() {
       Interval::empty()

@@ -25,6 +25,7 @@ use ops::*;
 use std::iter::{Peekable, IntoIterator};
 use std::fmt::{Formatter, Display, Error};
 use std::result::fold;
+use std::ops::{Add, Sub, Mul};
 
 use num::{Zero, One, Num};
 
@@ -150,6 +151,18 @@ impl<Bound: Width+Num> IntervalSet<Bound> where
     else {
       Some(self.find_interval_between(value, 0, self.back_idx()))
     }
+  }
+
+  fn for_all_pairs<F>(&self, other: &IntervalSet<Bound>, f: F) -> IntervalSet<Bound> where
+    F: Fn(&Interval<Bound>, &Interval<Bound>) -> Interval<Bound>
+  {
+    let mut res = IntervalSet::empty();
+    for i in &self.intervals {
+      for j in &other.intervals {
+        res = res.union(&IntervalSet::from_interval(f(i,j)));
+      }
+    }
+    res
   }
 }
 
@@ -502,6 +515,82 @@ impl<Bound: Width+Num> ProperSubset for IntervalSet<Bound>
 {
   fn is_proper_subset(&self, other: &IntervalSet<Bound>) -> bool {
     self.is_subset(other) && self.size() != other.size()
+  }
+}
+
+// Inspired by the macros from the BigUint impl. (doc.rust-lang.org/num/src/num/bigint.rs.html#235-280)
+macro_rules! forward_val_val_binop {
+  (impl $imp:ident for $res:ty, $method:ident) => {
+    impl<Bound: Num+Width> $imp<$res> for $res {
+      type Output = $res;
+
+      fn $method(self, other: $res) -> $res {
+        (&self).$method(&other)
+      }
+    }
+  }
+}
+
+macro_rules! forward_ref_val_binop {
+  (impl $imp:ident for $res:ty, $method:ident) => {
+    impl<'a, Bound: Num+Width> $imp<$res> for &'a $res {
+      type Output = $res;
+
+      fn $method(self, other: $res) -> $res {
+        self.$method(&other)
+      }
+    }
+  }
+}
+
+macro_rules! forward_val_ref_binop {
+  (impl $imp:ident for $res:ty, $method:ident) => {
+    impl<'b, Bound: Num+Width> $imp<&'b $res> for $res {
+      type Output = $res;
+
+      fn $method(self, other: &$res) -> $res {
+        (&self).$method(other)
+      }
+    }
+  }
+}
+
+macro_rules! forward_all_binop {
+  (impl $imp:ident for $res:ty, $method:ident) => {
+    forward_val_val_binop!(impl $imp for $res, $method);
+    forward_ref_val_binop!(impl $imp for $res, $method);
+    forward_val_ref_binop!(impl $imp for $res, $method);
+  };
+}
+
+forward_all_binop!(impl Add for IntervalSet<Bound>, add);
+
+impl<'a, 'b, Bound: Num+Width> Add<&'b IntervalSet<Bound>> for &'a IntervalSet<Bound> {
+  type Output = IntervalSet<Bound>;
+
+  fn add(self, other: &IntervalSet<Bound>) -> IntervalSet<Bound> {
+    self.for_all_pairs(other, |i, j| i + j)
+  }
+}
+
+forward_all_binop!(impl Sub for IntervalSet<Bound>, sub);
+
+impl<'a, 'b, Bound: Num+Width> Sub<&'b IntervalSet<Bound>> for &'a IntervalSet<Bound> {
+  type Output = IntervalSet<Bound>;
+
+  fn sub(self, other: &IntervalSet<Bound>) -> IntervalSet<Bound> {
+    self.for_all_pairs(other, |i, j| i - j)
+  }
+}
+
+forward_all_binop!(impl Mul for IntervalSet<Bound>, mul);
+
+impl<'a, 'b, Bound: Num+Width> Mul<&'b IntervalSet<Bound>> for &'a IntervalSet<Bound> {
+  type Output = IntervalSet<Bound>;
+
+  // Caution: This is an over-approximation. For the same reason as `Interval::mul`.
+  fn mul(self, other: &IntervalSet<Bound>) -> IntervalSet<Bound> {
+    self.for_all_pairs(other, |i, j| i * j)
   }
 }
 
@@ -935,6 +1024,34 @@ mod tests {
       test_binary_bool_op(format!("test #{} of subset", id), b.clone(), a.clone(), |x,y| x.is_subset(y), expected_sym);
       test_binary_bool_op(format!("test #{} of proper subset", id), a.clone(), b.clone(), |x,y| x.is_proper_subset(y), expected_proper);
       test_binary_bool_op(format!("test #{} of proper subset", id), b.clone(), a.clone(), |x,y| x.is_proper_subset(y), expected_proper_sym);
+    }
+  }
+
+  #[test]
+  fn test_arithmetics() {
+    // Second and third args are the test value.
+    // Fourth, fifth and sixth are the results of `a + b`, `a - b`, `b - a` and `a * b`
+    let cases = vec![
+      (1, vec![], vec![], vec![], vec![], vec![], vec![]),
+      (2, vec![], vec![(1,1),(3,5)], vec![], vec![], vec![], vec![]),
+      (3, vec![(1,1),(3,5)], vec![(0,0)], vec![(1,1),(3,5)], vec![(1,1),(3,5)], vec![(-5,-3),(-1,-1)], vec![(0,0)]),
+      (4, vec![(1,1),(3,5)], vec![(1,1)], vec![(2,2),(4,6)], vec![(0,0),(2,4)], vec![(-4,-2),(0,0)], vec![(1,1),(3,5)]),
+      (5, vec![(1,1),(3,5)], vec![(0,1),(4,5)],
+        vec![(1,10)],
+        vec![(-4,5)],
+        vec![(-5,4)],
+        vec![(0,5),(12,25)]),
+    ];
+
+    for (id, a, b, e_add, e_sub, e_sub_sym, e_mul) in cases {
+      test_binary_op_sym(format!("test #{} of `a+b`", id),
+        a.clone(), b.clone(), |x,y| x + y, e_add);
+      test_binary_op(format!("test #{} of `a-b`", id),
+        a.clone(), b.clone(), |x,y| x - y, e_sub);
+      test_binary_op(format!("test #{} of `b-a`", id),
+        b.clone(), a.clone(), |x,y| x - y, e_sub_sym);
+      test_binary_op_sym(format!("test #{} of `a*b`", id),
+        a.clone(), b.clone(), |x,y| x * y, e_mul);
     }
   }
 }
