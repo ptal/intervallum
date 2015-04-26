@@ -41,6 +41,7 @@
 use ncollections::ops::*;
 use ops::*;
 
+use std::ops::{Add, Sub, Mul};
 use std::cmp::{min, max};
 use std::fmt::{Formatter, Display, Error};
 use num::{Zero, Num};
@@ -274,6 +275,98 @@ impl<Bound: Num+Ord+Clone> ShrinkRight<Bound> for Interval<Bound>
       this.ub = ub;
     }
     this
+  }
+}
+
+// Inspired by the macros from the BigUint impl. (doc.rust-lang.org/num/src/num/bigint.rs.html#235-280)
+macro_rules! forward_val_val_binop {
+  (impl $imp:ident for $res:ty, $method:ident) => {
+    impl<Bound: Num+Width> $imp<$res> for $res {
+      type Output = $res;
+
+      fn $method(self, other: $res) -> $res {
+        (&self).$method(&other)
+      }
+    }
+  }
+}
+
+macro_rules! forward_ref_val_binop {
+  (impl $imp:ident for $res:ty, $method:ident) => {
+    impl<'a, Bound: Num+Width> $imp<$res> for &'a $res {
+      type Output = $res;
+
+      fn $method(self, other: $res) -> $res {
+        self.$method(&other)
+      }
+    }
+  }
+}
+
+macro_rules! forward_val_ref_binop {
+  (impl $imp:ident for $res:ty, $method:ident) => {
+    impl<'b, Bound: Num+Width> $imp<&'b $res> for $res {
+      type Output = $res;
+
+      fn $method(self, other: &$res) -> $res {
+        (&self).$method(other)
+      }
+    }
+  }
+}
+
+macro_rules! forward_all_binop {
+  (impl $imp:ident for $res:ty, $method:ident) => {
+    forward_val_val_binop!(impl $imp for $res, $method);
+    forward_ref_val_binop!(impl $imp for $res, $method);
+    forward_val_ref_binop!(impl $imp for $res, $method);
+  };
+}
+
+forward_all_binop!(impl Add for Interval<Bound>, add);
+
+impl<'a, 'b, Bound: Num+Width> Add<&'b Interval<Bound>> for &'a Interval<Bound> {
+  type Output = Interval<Bound>;
+
+  fn add(self, other: &Interval<Bound>) -> Interval<Bound> {
+    if self.is_empty() || other.is_empty() {
+      Interval::empty()
+    } else {
+      Interval::new(self.lower() + other.lower(), self.upper() + other.upper())
+    }
+  }
+}
+
+forward_all_binop!(impl Sub for Interval<Bound>, sub);
+
+impl<'a, 'b, Bound: Num+Width> Sub<&'b Interval<Bound>> for &'a Interval<Bound> {
+  type Output = Interval<Bound>;
+
+  fn sub(self, other: &Interval<Bound>) -> Interval<Bound> {
+    if self.is_empty() || other.is_empty() {
+      Interval::empty()
+    } else {
+      Interval::new(self.lower() - other.upper(), self.upper() - other.lower())
+    }
+  }
+}
+
+forward_all_binop!(impl Mul for Interval<Bound>, mul);
+
+impl<'a, 'b, Bound: Num+Width> Mul<&'b Interval<Bound>> for &'a Interval<Bound> {
+  type Output = Interval<Bound>;
+
+  fn mul(self, other: &Interval<Bound>) -> Interval<Bound> {
+    if self.is_empty() || other.is_empty() {
+      Interval::empty()
+    } else {
+      let (min, max) = vec![
+        self.lower() * other.lower(),
+        self.lower() * other.upper(),
+        self.upper() * other.lower(),
+        self.upper() * other.upper()].into_iter().min_max().into_option().unwrap();
+      Interval::new(min, max)
+    }
   }
 }
 
@@ -811,6 +904,116 @@ mod tests {
     ];
     for (x,y,r) in cases.into_iter() {
       assert!(x.shrink_right(y) == r, "{:?} shrink_right {:?} is not equal to {:?}", x, y, r);
+    }
+  }
+
+  #[test]
+  fn add_test() {
+    // For each cases (x, y, res)
+    // * x and y are the values
+    // * res is the result of `x + y`
+    let sym_cases = vec![
+      (zero, zero,          zero),
+      (i1_2, i1_2,          (2, 4).to_interval()),
+      (empty, empty,        empty),
+      (invalid, invalid,    empty),
+      // ||
+      // |-|
+      (empty, zero,         empty),
+      (invalid, zero,       empty),
+      (empty, invalid,      empty),
+      // ||
+      //|--|
+      (empty, i1_2,         empty),
+      (empty, i0_10,        empty),
+      (invalid, i1_2,       empty),
+      (zero, i0_10,         i0_10),
+      (i1_2, i0_10,         (1,12).to_interval()),
+      (im5_10, i0_10,       (-5,20).to_interval()),
+      (im5_10, im30_m20,    (-35,-10).to_interval())
+    ];
+
+    for &(x,y,r) in &sym_cases {
+      assert!(x + y == r, "{:?} + {:?} is not equal to {:?}", x, y, r);
+      assert!(y + x == r, "{:?} + {:?} is not equal to {:?}", y, x, r);
+    }
+  }
+
+  #[test]
+  fn sub_test() {
+    // For each cases (x, y, res)
+    // * x and y are the values
+    // * res is the result of `x - y`
+    let cases = vec![
+      (zero, zero,          zero),
+      (i1_2, i1_2,          (-1, 1).to_interval()),
+      (empty, empty,        empty),
+      (invalid, invalid,    empty),
+      // ||
+      // |-|
+      (empty, zero,         empty),
+      (invalid, zero,       empty),
+      (empty, invalid,      empty),
+      // ||
+      //|--|
+      (empty, i1_2,         empty),
+      (empty, i0_10,        empty),
+      (invalid, i1_2,       empty),
+    ];
+
+    // For each cases (x, y, (res1, res2))
+    // * x and y are the values
+    // * res1 is the result of `x - y` and res2 of `y - x`
+    let sym_cases = vec![
+      (zero, i0_10,       ((-10,0), (0,10))),
+      (i1_2, i0_10,       ((-9,2), (-2, 9))),
+      (im5_10, i0_10,     ((-15,10), (-10, 15))),
+      (im5_10, im30_m20,  ((15,40), (-40,-15)))
+    ];
+
+    for &(x,y,r) in &cases {
+      assert!(x - y == r, "{:?} - {:?} is not equal to {:?}", x, y, r);
+      assert!(y - x == r, "{:?} - {:?} is not equal to {:?}", y, x, r);
+    }
+
+    for &(x,y,(r1, r2)) in &sym_cases {
+      let r1 = r1.to_interval();
+      let r2 = r2.to_interval();
+      assert!(x - y == r1, "{:?} - {:?} is not equal to {:?}", x, y, r1);
+      assert!(y - x == r2, "{:?} - {:?} is not equal to {:?}", y, x, r2);
+    }
+  }
+
+  #[test]
+  fn mul_test() {
+    // For each cases (x, y, res)
+    // * x and y are the values
+    // * res is the result of `x * y`
+    let sym_cases = vec![
+      (zero, zero,          zero),
+      (i1_2, i1_2,          (1, 4).to_interval()),
+      (empty, empty,        empty),
+      (invalid, invalid,    empty),
+      // ||
+      // |-|
+      (empty, zero,         empty),
+      (invalid, zero,       empty),
+      (empty, invalid,      empty),
+      // ||
+      //|--|
+      (empty, i1_2,         empty),
+      (empty, i0_10,        empty),
+      (invalid, i1_2,       empty),
+      (zero, i0_10,         zero),
+      (one, i0_10,          i0_10),
+      (i1_2, i0_10,         (0,20).to_interval()),
+      (im5_10, i0_10,       (-50,100).to_interval()),
+      (im5_10, im30_m20,    (-300,150).to_interval())
+    ];
+
+    for &(x,y,r) in &sym_cases {
+      assert!(x * y == r, "{:?} * {:?} is not equal to {:?}", x, y, r);
+      assert!(y * x == r, "{:?} * {:?} is not equal to {:?}", y, x, r);
     }
   }
 }
