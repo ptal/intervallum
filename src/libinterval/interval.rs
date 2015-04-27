@@ -199,12 +199,10 @@ impl<Bound: Width+Num> Overlap for Interval<Bound>
   }
 }
 
-forward_all_binop!(impl<Bound: +Width+Num> Intersection for Interval<Bound>, intersection);
-
-impl<'a, 'b, Bound: Width+Num> Intersection<&'b Interval<Bound>> for &'a Interval<Bound>
+impl<Bound: Width+Num> Intersection for Interval<Bound>
 {
   type Output = Interval<Bound>;
-  fn intersection(self, other: &Interval<Bound>) -> Interval<Bound> {
+  fn intersection(&self, other: &Interval<Bound>) -> Interval<Bound> {
     Interval::new(
       max(self.lower(), other.lower()),
       min(self.upper(), other.upper())
@@ -212,12 +210,10 @@ impl<'a, 'b, Bound: Width+Num> Intersection<&'b Interval<Bound>> for &'a Interva
   }
 }
 
-forward_all_binop!(impl<Bound: +Width+Num> Intersection for Interval<Bound>, intersection, Bound);
-
-impl<'a, 'b, Bound: Width+Num> Intersection<&'b Bound> for &'a Interval<Bound>
+impl<Bound: Width+Num> Intersection<Bound> for Interval<Bound>
 {
   type Output = Interval<Bound>;
-  fn intersection(self, value: &Bound) -> Interval<Bound> {
+  fn intersection(&self, value: &Bound) -> Interval<Bound> {
     if self.contains(value) {
       Interval::singleton(value.clone())
     }
@@ -227,9 +223,7 @@ impl<'a, 'b, Bound: Width+Num> Intersection<&'b Bound> for &'a Interval<Bound>
   }
 }
 
-forward_all_binop!(impl<Bound: +Width+Num> Difference for Interval<Bound>, difference);
-
-impl<'a, 'b, Bound: Width+Num> Difference<&'b Interval<Bound>> for &'a Interval<Bound>
+impl<Bound: Width+Num> Difference for Interval<Bound>
 {
   type Output = Interval<Bound>;
   // A - B is equivalent to A /\ ~B
@@ -240,19 +234,17 @@ impl<'a, 'b, Bound: Width+Num> Difference<&'b Interval<Bound>> for &'a Interval<
   //      A /\ [inf,B.lb-1]
   //    \/
   //      A /\ [B.ub+1, inf]
-  fn difference(self, other: &Interval<Bound>) -> Interval<Bound> {
+  fn difference(&self, other: &Interval<Bound>) -> Interval<Bound> {
     let left = self.intersection(&Interval::min_lb(other.lower() - Bound::one()));
     let right = self.intersection(&Interval::max_ub(other.upper() + Bound::one()));
     left.hull(&right)
   }
 }
 
-forward_all_binop!(impl<Bound: +Num+Clone> Difference for Interval<Bound>, difference, Bound);
-
-impl<'a, 'b, Bound: Num+Clone> Difference<&'b Bound> for &'a Interval<Bound>
+impl<Bound: Num+Clone> Difference<Bound> for Interval<Bound>
 {
   type Output = Interval<Bound>;
-  fn difference(self, value: &Bound) -> Interval<Bound> {
+  fn difference(&self, value: &Bound) -> Interval<Bound> {
     let mut this = self.clone();
     if value == &this.lb {
       this.lb = this.lb + Bound::one();
@@ -286,7 +278,7 @@ impl<Bound: Num+Ord+Clone> ShrinkRight<Bound> for Interval<Bound>
   }
 }
 
-forward_all_binop!(impl<Bound: +Width+Num> Add for Interval<Bound>, add);
+forward_all_binop!(impl<Bound: +Num+Width> Add for Interval<Bound>, add);
 
 impl<'a, 'b, Bound: Num+Width> Add<&'b Interval<Bound>> for &'a Interval<Bound> {
   type Output = Interval<Bound>;
@@ -300,7 +292,7 @@ impl<'a, 'b, Bound: Num+Width> Add<&'b Interval<Bound>> for &'a Interval<Bound> 
   }
 }
 
-forward_all_binop!(impl<Bound: +Width+Num> Sub for Interval<Bound>, sub);
+forward_all_binop!(impl<Bound: +Num+Width> Sub for Interval<Bound>, sub);
 
 impl<'a, 'b, Bound: Num+Width> Sub<&'b Interval<Bound>> for &'a Interval<Bound> {
   type Output = Interval<Bound>;
@@ -314,7 +306,7 @@ impl<'a, 'b, Bound: Num+Width> Sub<&'b Interval<Bound>> for &'a Interval<Bound> 
   }
 }
 
-forward_all_binop!(impl<Bound: +Width+Num> Mul for Interval<Bound>, mul);
+forward_all_binop!(impl<Bound: +Num+Width> Mul for Interval<Bound>, mul);
 
 impl<'a, 'b, Bound: Num+Width> Mul<&'b Interval<Bound>> for &'a Interval<Bound> {
   type Output = Interval<Bound>;

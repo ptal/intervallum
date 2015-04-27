@@ -313,13 +313,11 @@ fn from_lower_iterator<I, Bound>(a : &mut Peekable<I>, b: &mut Peekable<I>) -> I
   }
 }
 
-forward_all_binop!(impl<Bound: +Width+Num> Union for IntervalSet<Bound>, union);
-
-impl<'a, 'b, Bound: Width+Num> Union<&'b IntervalSet<Bound>> for &'a IntervalSet<Bound>
+impl<Bound: Width+Num> Union for IntervalSet<Bound>
 {
   type Output = IntervalSet<Bound>;
 
-  fn union(self, rhs: &IntervalSet<Bound>) -> IntervalSet<Bound> {
+  fn union(&self, rhs: &IntervalSet<Bound>) -> IntervalSet<Bound> {
     let mut a = &mut self.intervals.iter().cloned().peekable();
     let mut b = &mut rhs.intervals.iter().cloned().peekable();
     let mut res = from_lower_iterator(a, b);
@@ -354,13 +352,11 @@ fn advance_to_first_overlapping<I, Item>(a : &mut Peekable<I>, b: &mut Peekable<
   false
 }
 
-forward_all_binop!(impl<Bound: +Num+Width> Intersection for IntervalSet<Bound>, intersection);
-
-impl<'a, 'b, Bound: Width+Num> Intersection<&'b IntervalSet<Bound>> for &'a IntervalSet<Bound>
+impl<Bound: Width+Num> Intersection for IntervalSet<Bound>
 {
   type Output = IntervalSet<Bound>;
 
-  fn intersection(self, rhs: &IntervalSet<Bound>) -> IntervalSet<Bound> {
+  fn intersection(&self, rhs: &IntervalSet<Bound>) -> IntervalSet<Bound> {
     let mut a = &mut self.intervals.iter().cloned().peekable();
     let mut b = &mut rhs.intervals.iter().cloned().peekable();
     let mut res = IntervalSet::empty();
@@ -413,22 +409,18 @@ impl<Bound: Width+Num> Complement for IntervalSet<Bound>
   }
 }
 
-forward_all_binop!(impl<Bound: +Width+Num> Difference for IntervalSet<Bound>, difference);
-
-impl<'a, 'b, Bound: Width+Num> Difference<&'b IntervalSet<Bound>> for &'a IntervalSet<Bound> {
+impl<Bound: Width+Num> Difference for IntervalSet<Bound> {
   type Output = IntervalSet<Bound>;
 
-  fn difference(self, rhs: &IntervalSet<Bound>) -> IntervalSet<Bound> {
+  fn difference(&self, rhs: &IntervalSet<Bound>) -> IntervalSet<Bound> {
     self.intersection(&rhs.complement())
   }
 }
 
-forward_all_binop!(impl<Bound: +Width+Num> SymmetricDifference for IntervalSet<Bound>, symmetric_difference);
-
-impl<'a, 'b, Bound: Width+Num> SymmetricDifference<&'b IntervalSet<Bound>> for &'a IntervalSet<Bound> {
+impl<Bound: Width+Num> SymmetricDifference for IntervalSet<Bound> {
   type Output = IntervalSet<Bound>;
 
-  fn symmetric_difference(self, rhs: &IntervalSet<Bound>) -> IntervalSet<Bound> {
+  fn symmetric_difference(&self, rhs: &IntervalSet<Bound>) -> IntervalSet<Bound> {
     let union = self.union(rhs);
     let intersection = self.intersection(rhs);
     union.difference(&intersection)

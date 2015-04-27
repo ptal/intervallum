@@ -29,22 +29,22 @@ use num::{One, Zero, Unsigned};
 
 pub trait Intersection<RHS = Self> {
   type Output;
-  fn intersection(self, rhs: RHS) -> Self::Output;
+  fn intersection(&self, rhs: &RHS) -> Self::Output;
 }
 
 pub trait Union<RHS = Self> {
   type Output;
-  fn union(self, rhs: RHS) -> Self::Output;
+  fn union(&self, rhs: &RHS) -> Self::Output;
 }
 
 pub trait Difference<RHS = Self> {
   type Output;
-  fn difference(self, rhs: RHS) -> Self::Output;
+  fn difference(&self, rhs: &RHS) -> Self::Output;
 }
 
 pub trait SymmetricDifference<RHS = Self> {
   type Output;
-  fn symmetric_difference(self, rhs: RHS) -> Self::Output;
+  fn symmetric_difference(&self, rhs: &RHS) -> Self::Output;
 }
 
 pub trait Complement {
@@ -55,39 +55,33 @@ macro_rules! set_op_impl
 {
   ( $( $t: ident, $m:ident, $v:ident );* ) =>
   {$(
-    forward_all_binop!(impl<T: +Ord+Clone> $t for BTreeSet<T>, $m);
-
-    impl<'a, 'b, T> $t<&'b BTreeSet<T>> for &'a BTreeSet<T>
+    impl<T> $t for BTreeSet<T>
     where T: Ord+Clone
     {
       type Output = BTreeSet<T>;
 
-      fn $m(self, other: &BTreeSet<T>) -> BTreeSet<T> {
+      fn $m(&self, other: &BTreeSet<T>) -> BTreeSet<T> {
         BTreeSet::wrap(FromIterator::from_iter(self.deref().$m(other).cloned()))
       }
     }
 
-    // forward_all_binop!(impl<> $t for BitSet, $m);
+    impl $t for BitSet {
+      type Output = BitSet;
 
-    // impl<'a, 'b> $t<&'b BitSet> for &'a BitSet {
-    //   type Output = BitSet;
+      fn $m(&self, other: &BitSet) -> BitSet {
+        let mut new = self.deref().clone();
+        new.$v(other);
+        BitSet::wrap(new)
+      }
+    }
 
-    //   fn $m(self, other: &BitSet) -> BitSet {
-    //     let mut new = self.deref().clone();
-    //     new.$v(other);
-    //     BitSet::wrap(new)
-    //   }
-    // }
-
-    forward_all_binop!(impl<T: +Eq+Hash+Clone, S: +HashState+Default> $t for HashSet<T, S>, $m);
-
-    impl<'a, 'b, T, S> $t<&'b HashSet<T, S>> for &'a HashSet<T, S>
+    impl<T, S> $t for HashSet<T, S>
     where T: Eq + Hash + Clone,
           S: HashState + Default
     {
       type Output = HashSet<T, S>;
 
-      fn $m(self, other: &HashSet<T, S>) -> HashSet<T, S> {
+      fn $m(&self, other: &HashSet<T, S>) -> HashSet<T, S> {
         HashSet::wrap(FromIterator::from_iter(self.deref().$m(other).cloned()))
       }
     }
@@ -100,14 +94,14 @@ macro_rules! set_enum_op_impl
   {$(
     set_op_impl! {$t, $m, $v}
 
-    // impl<E: CLike> $t for EnumSet<E>
-    // {
-    //   type Output = EnumSet<E>;
+    impl<E: CLike> $t for EnumSet<E>
+    {
+      type Output = EnumSet<E>;
 
-    //   fn $m(&self, other: &EnumSet<E>) -> EnumSet<E> {
-    //     EnumSet::wrap(self.deref().$m(**other))
-    //   }
-    // }
+      fn $m(&self, other: &EnumSet<E>) -> EnumSet<E> {
+        EnumSet::wrap(self.deref().$m(**other))
+      }
+    }
   )*}
 }
 
