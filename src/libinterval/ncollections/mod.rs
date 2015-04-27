@@ -26,12 +26,13 @@
 //! use interval::ncollections::ops::*;
 //! use interval::ncollections::BTreeSet;
 //!
-//! fn symmetric_difference<A>(a: &A, b: &A) -> A where
-//!  A: Intersection<Output=A> + Union<Output=A> + Difference<Output=A>
+//! fn symmetric_difference<'a, 'b, A>(a: &'a A, b: &'b A) -> A where
+//!  &'a A: Intersection<&'b A, Output=A> + Union<&'b A, Output=A>,
+//!  A: Difference<Output=A>
 //! {
 //!   let union = a.union(b);
 //!   let intersect = a.intersection(b);
-//!   union.difference(&intersect)
+//!   union.difference(intersect)
 //! }
 //!
 //! let a = BTreeSet::wrap([1, 2, 3, 4].iter().cloned().collect());
