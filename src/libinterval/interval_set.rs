@@ -352,11 +352,13 @@ fn advance_to_first_overlapping<I, Item>(a : &mut Peekable<I>, b: &mut Peekable<
   false
 }
 
-impl<Bound: Width+Num> Intersection for IntervalSet<Bound>
+forward_all_binop!(impl<Bound: +Num+Width> Intersection for IntervalSet<Bound>, intersection);
+
+impl<'a, 'b, Bound: Width+Num> Intersection<&'b IntervalSet<Bound>> for &'a IntervalSet<Bound>
 {
   type Output = IntervalSet<Bound>;
 
-  fn intersection(&self, rhs: &IntervalSet<Bound>) -> IntervalSet<Bound> {
+  fn intersection(self, rhs: &IntervalSet<Bound>) -> IntervalSet<Bound> {
     let mut a = &mut self.intervals.iter().cloned().peekable();
     let mut b = &mut rhs.intervals.iter().cloned().peekable();
     let mut res = IntervalSet::empty();
@@ -518,7 +520,7 @@ impl<Bound: Width+Num> ProperSubset for IntervalSet<Bound>
   }
 }
 
-forward_all_binop!(impl Add for IntervalSet<Bound>, add);
+forward_all_binop!(impl<Bound: +Num+Width> Add for IntervalSet<Bound>, add);
 
 impl<'a, 'b, Bound: Num+Width> Add<&'b IntervalSet<Bound>> for &'a IntervalSet<Bound> {
   type Output = IntervalSet<Bound>;
@@ -528,7 +530,7 @@ impl<'a, 'b, Bound: Num+Width> Add<&'b IntervalSet<Bound>> for &'a IntervalSet<B
   }
 }
 
-forward_all_binop!(impl Sub for IntervalSet<Bound>, sub);
+forward_all_binop!(impl<Bound: +Num+Width> Sub for IntervalSet<Bound>, sub);
 
 impl<'a, 'b, Bound: Num+Width> Sub<&'b IntervalSet<Bound>> for &'a IntervalSet<Bound> {
   type Output = IntervalSet<Bound>;
@@ -538,7 +540,7 @@ impl<'a, 'b, Bound: Num+Width> Sub<&'b IntervalSet<Bound>> for &'a IntervalSet<B
   }
 }
 
-forward_all_binop!(impl Mul for IntervalSet<Bound>, mul);
+forward_all_binop!(impl<Bound: +Num+Width> Mul for IntervalSet<Bound>, mul);
 
 impl<'a, 'b, Bound: Num+Width> Mul<&'b IntervalSet<Bound>> for &'a IntervalSet<Bound> {
   type Output = IntervalSet<Bound>;

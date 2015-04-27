@@ -199,10 +199,12 @@ impl<Bound: Width+Num> Overlap for Interval<Bound>
   }
 }
 
-impl<Bound: Width+Num> Intersection for Interval<Bound>
+forward_all_binop!(impl<Bound: +Num+Width> Intersection for Interval<Bound>, intersection);
+
+impl<'a, 'b, Bound: Width+Num> Intersection<&'b Interval<Bound>> for &'a Interval<Bound>
 {
   type Output = Interval<Bound>;
-  fn intersection(&self, other: &Interval<Bound>) -> Interval<Bound> {
+  fn intersection(self, other: &Interval<Bound>) -> Interval<Bound> {
     Interval::new(
       max(self.lower(), other.lower()),
       min(self.upper(), other.upper())
@@ -210,10 +212,12 @@ impl<Bound: Width+Num> Intersection for Interval<Bound>
   }
 }
 
-impl<Bound: Width+Num> Intersection<Bound> for Interval<Bound>
+forward_all_binop!(impl<Bound: +Num+Width> Intersection for Interval<Bound>, intersection, Bound);
+
+impl<'a, 'b, Bound: Width+Num> Intersection<&'b Bound> for &'a Interval<Bound>
 {
   type Output = Interval<Bound>;
-  fn intersection(&self, value: &Bound) -> Interval<Bound> {
+  fn intersection(self, value: &Bound) -> Interval<Bound> {
     if self.contains(value) {
       Interval::singleton(value.clone())
     }
@@ -278,7 +282,7 @@ impl<Bound: Num+Ord+Clone> ShrinkRight<Bound> for Interval<Bound>
   }
 }
 
-forward_all_binop!(impl Add for Interval<Bound>, add);
+forward_all_binop!(impl<Bound: +Num+Width> Add for Interval<Bound>, add);
 
 impl<'a, 'b, Bound: Num+Width> Add<&'b Interval<Bound>> for &'a Interval<Bound> {
   type Output = Interval<Bound>;
@@ -292,7 +296,7 @@ impl<'a, 'b, Bound: Num+Width> Add<&'b Interval<Bound>> for &'a Interval<Bound> 
   }
 }
 
-forward_all_binop!(impl Sub for Interval<Bound>, sub);
+forward_all_binop!(impl<Bound: +Num+Width> Sub for Interval<Bound>, sub);
 
 impl<'a, 'b, Bound: Num+Width> Sub<&'b Interval<Bound>> for &'a Interval<Bound> {
   type Output = Interval<Bound>;
@@ -306,7 +310,7 @@ impl<'a, 'b, Bound: Num+Width> Sub<&'b Interval<Bound>> for &'a Interval<Bound> 
   }
 }
 
-forward_all_binop!(impl Mul for Interval<Bound>, mul);
+forward_all_binop!(impl<Bound: +Num+Width> Mul for Interval<Bound>, mul);
 
 impl<'a, 'b, Bound: Num+Width> Mul<&'b Interval<Bound>> for &'a Interval<Bound> {
   type Output = Interval<Bound>;
