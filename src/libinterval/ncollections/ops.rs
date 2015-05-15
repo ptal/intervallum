@@ -23,7 +23,8 @@ use std::iter::FromIterator;
 use std::default::Default;
 use ncollections::{HashSet, BTreeSet, BitSet, EnumSet};
 use std::ops::Deref;
-use num::{One, Zero, Unsigned};
+use num::{One, Zero, Unsigned, Num};
+use num;
 
 // Basic set operations
 
@@ -175,6 +176,40 @@ pub trait ShrinkRight<Bound> {
   fn shrink_right(&self, ub: Bound) -> Self;
 }
 
+pub trait StrictShrinkLeft<Bound> {
+  fn strict_shrink_left(&self, lb: Bound) -> Self;
+}
+
+pub trait StrictShrinkRight<Bound> {
+  fn strict_shrink_right(&self, ub: Bound) -> Self;
+}
+
+impl<Bound, R> StrictShrinkLeft<Bound> for R where
+  Bound: Num + num::Bounded,
+  R: ShrinkLeft<Bound> + Empty
+{
+  fn strict_shrink_left(&self, lb: Bound) -> R {
+    if lb == Bound::max_value() {
+      R::empty()
+    } else {
+      self.shrink_left(lb + Bound::one())
+    }
+  }
+}
+
+impl<Bound, R> StrictShrinkRight<Bound> for R where
+  Bound: Num + num::Bounded,
+  R: ShrinkRight<Bound> + Empty
+{
+  fn strict_shrink_right(&self, ub: Bound) -> R {
+    if ub == Bound::min_value() {
+      R::empty()
+    } else {
+      self.shrink_right(ub - Bound::one())
+    }
+  }
+}
+
 // Cardinality
 
 pub trait Cardinality {
@@ -200,9 +235,43 @@ pub trait Singleton<Item> {
   fn singleton(value: Item) -> Self;
 }
 
+// Bound access
+
 pub trait Bounded
 {
   type Bound: PartialOrd;
   fn lower(&self) -> Self::Bound;
   fn upper(&self) -> Self::Bound;
+}
+
+#[allow(non_upper_case_globals)]
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use interval::*;
+  use ops::*;
+
+  #[test]
+  fn strict_shrink_left() {
+    let empty: Interval<u32> = Interval::empty();
+    let i0_10: Interval<u32> = Interval::new(0, 10);
+    let i2_10: Interval<u32> = Interval::new(2, 10);
+
+    let ub = u32::max_value();
+    assert_eq!(i0_10.strict_shrink_left(ub), empty);
+    assert_eq!(i0_10.strict_shrink_left(10u32), empty);
+    assert_eq!(i0_10.strict_shrink_left(1u32), i2_10);
+  }
+
+  #[test]
+  fn strict_shrink_right() {
+    let empty: Interval<u32> = Interval::empty();
+    let i0_10: Interval<u32> = Interval::new(0, 10);
+    let i0_8: Interval<u32> = Interval::new(0, 8);
+
+    let lb = u32::min_value();
+    assert_eq!(i0_10.strict_shrink_right(lb), empty);
+    assert_eq!(i0_10.strict_shrink_right(0u32), empty);
+    assert_eq!(i0_10.strict_shrink_right(9u32), i0_8);
+  }
 }
