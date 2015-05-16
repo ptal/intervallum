@@ -23,7 +23,7 @@ use std::iter::FromIterator;
 use std::default::Default;
 use ncollections::{HashSet, BTreeSet, BitSet, EnumSet};
 use std::ops::Deref;
-use num::{One, Zero, Unsigned, Num};
+use num::{One, Zero, Unsigned};
 use num;
 
 // Basic set operations
@@ -185,7 +185,7 @@ pub trait StrictShrinkRight<Bound> {
 }
 
 impl<Bound, R> StrictShrinkLeft<Bound> for R where
-  Bound: Num + num::Bounded,
+  Bound: num::PrimInt,
   R: ShrinkLeft<Bound> + Empty
 {
   fn strict_shrink_left(&self, lb: Bound) -> R {
@@ -198,7 +198,7 @@ impl<Bound, R> StrictShrinkLeft<Bound> for R where
 }
 
 impl<Bound, R> StrictShrinkRight<Bound> for R where
-  Bound: Num + num::Bounded,
+  Bound: num::PrimInt,
   R: ShrinkRight<Bound> + Empty
 {
   fn strict_shrink_right(&self, ub: Bound) -> R {
