@@ -164,6 +164,23 @@ impl<Bound: Width+Num> IntervalSet<Bound> where
     }
     res
   }
+
+  // Precondition: `f` must not change the size of the interval.
+  fn stable_map<F>(&self, f: F) -> IntervalSet<Bound> where
+    F: Fn(&Interval<Bound>) -> Interval<Bound>
+  {
+    IntervalSet {
+      intervals: self.intervals.iter().map(f).collect(),
+      size: self.size.clone()
+    }
+  }
+
+  fn map<F>(&self, f: F) -> IntervalSet<Bound> where
+    F: Fn(&Interval<Bound>) -> Interval<Bound>
+  {
+    self.intervals.iter().fold(IntervalSet::empty(),
+      |mut r, i| { r.push(f(i)); r })
+  }
 }
 
 fn joinable<Bound: Width+Num>(first: &Interval<Bound>, second: &Interval<Bound>) -> bool {
@@ -528,6 +545,16 @@ impl<'a, 'b, Bound: Num+Width> Add<&'b IntervalSet<Bound>> for &'a IntervalSet<B
   }
 }
 
+forward_all_binop!(impl<Bound: +Num+Width+Clone> Add for IntervalSet<Bound>, add, Bound);
+
+impl<'a, 'b, Bound: Num+Width+Clone> Add<&'b Bound> for &'a IntervalSet<Bound> {
+  type Output = IntervalSet<Bound>;
+
+  fn add(self, other: &Bound) -> IntervalSet<Bound> {
+    self.stable_map(|x| x + other.clone())
+  }
+}
+
 forward_all_binop!(impl<Bound: +Num+Width> Sub for IntervalSet<Bound>, sub);
 
 impl<'a, 'b, Bound: Num+Width> Sub<&'b IntervalSet<Bound>> for &'a IntervalSet<Bound> {
@@ -535,6 +562,16 @@ impl<'a, 'b, Bound: Num+Width> Sub<&'b IntervalSet<Bound>> for &'a IntervalSet<B
 
   fn sub(self, other: &IntervalSet<Bound>) -> IntervalSet<Bound> {
     self.for_all_pairs(other, |i, j| i - j)
+  }
+}
+
+forward_all_binop!(impl<Bound: +Num+Width+Clone> Sub for IntervalSet<Bound>, sub, Bound);
+
+impl<'a, 'b, Bound: Num+Width+Clone> Sub<&'b Bound> for &'a IntervalSet<Bound> {
+  type Output = IntervalSet<Bound>;
+
+  fn sub(self, other: &Bound) -> IntervalSet<Bound> {
+    self.stable_map(|x| x - other.clone())
   }
 }
 
@@ -546,6 +583,25 @@ impl<'a, 'b, Bound: Num+Width> Mul<&'b IntervalSet<Bound>> for &'a IntervalSet<B
   // Caution: This is an over-approximation. For the same reason as `Interval::mul`.
   fn mul(self, other: &IntervalSet<Bound>) -> IntervalSet<Bound> {
     self.for_all_pairs(other, |i, j| i * j)
+  }
+}
+
+forward_all_binop!(impl<Bound: +Num+Width+Clone> Mul for IntervalSet<Bound>, mul, Bound);
+
+impl<'a, 'b, Bound: Num+Width+Clone> Mul<&'b Bound> for &'a IntervalSet<Bound> {
+  type Output = IntervalSet<Bound>;
+
+  // Caution: This is an over-approximation. For the same reason as `Interval::mul`.
+  fn mul(self, other: &Bound) -> IntervalSet<Bound> {
+    if self.is_empty() {
+      IntervalSet::empty()
+    } else if other == &Bound::zero() {
+      IntervalSet::singleton(Bound::zero())
+    } else if other == &Bound::one() {
+      self.clone()
+    } else {
+      self.map(|i| i * other.clone())
+    }
   }
 }
 
@@ -984,8 +1040,8 @@ mod tests {
 
   #[test]
   fn test_arithmetics() {
-    // Second and third args are the test value.
-    // Fourth, fifth and sixth are the results of `a + b`, `a - b`, `b - a` and `a * b`
+    // Second and third args are the test values.
+    // 4, 5, 6 and 7 are the results of `a + b`, `a - b`, `b - a` and `a * b`
     let cases = vec![
       (1, vec![], vec![], vec![], vec![], vec![], vec![]),
       (2, vec![], vec![(1,1),(3,5)], vec![], vec![], vec![], vec![]),
@@ -1006,6 +1062,33 @@ mod tests {
       test_binary_op(format!("test #{} of `b-a`", id),
         b.clone(), a.clone(), |x,y| x - y, e_sub_sym);
       test_binary_op_sym(format!("test #{} of `a*b`", id),
+        a.clone(), b.clone(), |x,y| x * y, e_mul);
+    }
+  }
+
+  #[test]
+  fn test_arithmetics_bound() {
+    let i1_35 = vec![(1,1),(3,5)];
+    // Second and third args are the test value.
+    // 4, 5 and 6 are the results of `a + b`, `a - b` and `a * b`
+    let cases = vec![
+      (1, vec![], 0, vec![], vec![], vec![]),
+      (2, vec![(0,0)], 0, vec![(0,0)], vec![(0,0)], vec![(0,0)]),
+      (3, i1_35.clone(), 0, i1_35.clone(), i1_35.clone(), vec![(0,0)]),
+      (4, vec![], 1, vec![], vec![], vec![]),
+      (5, vec![(0,0)], 1, vec![(1,1)], vec![(-1,-1)], vec![(0,0)]),
+      (6, i1_35.clone(), 1, vec![(2,2),(4,6)], vec![(0,0),(2,4)], i1_35.clone()),
+      (7, vec![], 3, vec![], vec![], vec![]),
+      (8, vec![(0,0)], 3, vec![(3,3)], vec![(-3,-3)], vec![(0,0)]),
+      (9, i1_35.clone(), 3, vec![(4,4),(6,8)], vec![(-2,-2),(0,2)], vec![(3,3),(9,15)])
+    ];
+
+    for (id, a, b, e_add, e_sub, e_mul) in cases {
+      test_binary_value_op(format!("test #{} of `a+b`", id),
+        a.clone(), b.clone(), |x,y| x + y, e_add);
+      test_binary_value_op(format!("test #{} of `a-b`", id),
+        a.clone(), b.clone(), |x,y| x - y, e_sub);
+      test_binary_value_op(format!("test #{} of `a*b`", id),
         a.clone(), b.clone(), |x,y| x * y, e_mul);
     }
   }
