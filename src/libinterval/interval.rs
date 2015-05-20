@@ -292,6 +292,21 @@ impl<'a, 'b, Bound: Num+Width> Add<&'b Interval<Bound>> for &'a Interval<Bound> 
   }
 }
 
+forward_all_binop!(impl<Bound: +Num+Width+Clone> Add for Interval<Bound>, add, Bound);
+
+impl<'a, 'b, Bound: Num+Width+Clone> Add<&'b Bound> for &'a Interval<Bound> {
+  type Output = Interval<Bound>;
+
+  fn add(self, other: &Bound) -> Interval<Bound> {
+    if self.is_empty() {
+      Interval::empty()
+    }
+    else {
+      Interval::new(self.lower() + other.clone(), self.upper() + other.clone())
+    }
+  }
+}
+
 forward_all_binop!(impl<Bound: +Num+Width> Sub for Interval<Bound>, sub);
 
 impl<'a, 'b, Bound: Num+Width> Sub<&'b Interval<Bound>> for &'a Interval<Bound> {
@@ -302,6 +317,20 @@ impl<'a, 'b, Bound: Num+Width> Sub<&'b Interval<Bound>> for &'a Interval<Bound> 
       Interval::empty()
     } else {
       Interval::new(self.lower() - other.upper(), self.upper() - other.lower())
+    }
+  }
+}
+
+forward_all_binop!(impl<Bound: +Num+Width+Clone> Sub for Interval<Bound>, sub, Bound);
+
+impl<'a, 'b, Bound: Num+Width+Clone> Sub<&'b Bound> for &'a Interval<Bound> {
+  type Output = Interval<Bound>;
+
+  fn sub(self, other: &Bound) -> Interval<Bound> {
+    if self.is_empty() {
+      Interval::empty()
+    } else {
+      Interval::new(self.lower() - other.clone(), self.upper() - other.clone())
     }
   }
 }
@@ -322,6 +351,21 @@ impl<'a, 'b, Bound: Num+Width> Mul<&'b Interval<Bound>> for &'a Interval<Bound> 
         self.upper() * other.lower(),
         self.upper() * other.upper()].into_iter().min_max().into_option().unwrap();
       Interval::new(min, max)
+    }
+  }
+}
+
+forward_all_binop!(impl<Bound: +Num+Width+Clone> Mul for Interval<Bound>, mul, Bound);
+
+impl<'a, 'b, Bound: Num+Width+Clone> Mul<&'b Bound> for &'a Interval<Bound> {
+  type Output = Interval<Bound>;
+
+  // Caution: Consider `[0,1] * 3`, the result `[0,3]` is an over-approximation.
+  fn mul(self, other: &Bound) -> Interval<Bound> {
+    if self.is_empty() {
+      Interval::empty()
+    } else {
+      Interval::new(self.lower() * other.clone(), self.upper() * other.clone())
     }
   }
 }
@@ -862,6 +906,34 @@ mod tests {
       assert!(x.shrink_right(y) == r, "{:?} shrink_right {:?} is not equal to {:?}", x, y, r);
     }
   }
+
+  #[test]
+  fn add_sub_mul_bound_test() {
+    // For each cases (x, y, r1, r2, r3)
+    // * x and y are the values
+    // * r1,r2 and r3 are the results of `x + y`, `x - y` and `x * y`
+    let cases = vec![
+      (zero, 0,      zero, zero, zero),
+      (i1_2, 0,      i1_2, i1_2, zero),
+      (empty, 0,     empty, empty, empty),
+      (invalid, 0,   empty, empty, empty),
+      (zero, 1,      one, (-1,-1).to_interval(), zero),
+      (i1_2, 1,      (2,3).to_interval(), (0,1).to_interval(), i1_2),
+      (empty, 1,     empty, empty, empty),
+      (invalid, 1,   empty, empty, empty),
+      (zero, 3,      (3,3).to_interval(), (-3,-3).to_interval(), zero),
+      (i1_2, 3,      (4,5).to_interval(), (-2,-1).to_interval(), (3, 6).to_interval()),
+      (empty, 3,     empty, empty, empty),
+      (invalid, 3,   empty, empty, empty),
+    ];
+
+    for &(x,y,r1,r2,r3) in &cases {
+      assert!(x + y == r1, "{:?} + {:?} is not equal to {:?}", x, y, r1);
+      assert!(x - y == r2, "{:?} - {:?} is not equal to {:?}", x, y, r2);
+      assert!(x * y == r3, "{:?} * {:?} is not equal to {:?}", x, y, r3);
+    }
+  }
+
 
   #[test]
   fn add_test() {
