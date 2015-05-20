@@ -244,6 +244,38 @@ pub trait Bounded
   fn upper(&self) -> Self::Bound;
 }
 
+macro_rules! integer_basic_ops_impl
+{
+  ( $( $t:ty, $s:ty ),* ) =>
+  {$(
+    impl Cardinality for $t
+    {
+      type Size = $s;
+      fn size(&self) -> $s {
+        <$s as One>::one()
+      }
+    }
+
+    impl Singleton<$t> for $t {
+      fn singleton(value: $t) -> $t {
+        value
+      }
+    }
+
+    impl Bounded for $t {
+      type Bound = $t;
+      fn lower(&self) -> $t {
+        *self
+      }
+      fn upper(&self) -> $t {
+        *self
+      }
+    }
+  )*}
+}
+
+integer_basic_ops_impl!(i8,u8,u8,u8,i16,u16,u16,u16,i32,u32,u32,u32,i64,u64,u64,u64,isize,usize,usize,usize);
+
 #[allow(non_upper_case_globals)]
 #[cfg(test)]
 mod tests {
