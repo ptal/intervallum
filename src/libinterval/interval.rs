@@ -44,7 +44,7 @@ use ops::*;
 use std::ops::{Add, Sub, Mul};
 use std::cmp::{min, max};
 use std::fmt::{Formatter, Display, Error};
-use num::{Zero, Num};
+use num::{Zero, One, Num};
 
 /// Closed interval (endpoints included).
 #[derive(Debug, Copy, Clone)]
@@ -63,6 +63,16 @@ impl<Bound: Width+Num> PartialEq<Interval<Bound>> for Interval<Bound>
   }
 }
 
+impl<Bound: Clone> Interval<Bound>
+{
+  fn low(&self) -> Bound {
+    self.lb.clone()
+  }
+  fn up(&self) -> Bound {
+    self.ub.clone()
+  }
+}
+
 impl<Bound: Width+Num> Interval<Bound>
 {
   fn min_lb(ub: Bound) -> Interval<Bound> {
@@ -74,7 +84,7 @@ impl<Bound: Width+Num> Interval<Bound>
   }
 }
 
-impl<Bound: Width+Num> Range<Bound> for Interval<Bound>
+impl<Bound: Width+Ord> Range<Bound> for Interval<Bound>
 {
   fn new(lb: Bound, ub: Bound) -> Interval<Bound> {
     debug_assert!(lb >= <Bound as Width>::min_value(),
@@ -85,20 +95,22 @@ impl<Bound: Width+Num> Range<Bound> for Interval<Bound>
   }
 }
 
-impl<Bound: Num+PartialOrd+Clone> Bounded for Interval<Bound>
+impl<Bound: Num+PartialOrd+Width+Clone> Bounded for Interval<Bound>
 {
   type Bound = Bound;
 
   fn lower(&self) -> Bound {
-    self.lb.clone()
+    debug_assert!(!self.is_empty(), "Cannot access lower bound on empty interval.");
+    self.low()
   }
 
   fn upper(&self) -> Bound {
-    self.ub.clone()
+    debug_assert!(!self.is_empty(), "Cannot access upper bound on empty interval.");
+    self.up()
   }
 }
 
-impl <Bound: Width+Num> Singleton<Bound> for Interval<Bound>
+impl <Bound: Width+Clone> Singleton<Bound> for Interval<Bound>
 {
   fn singleton(x: Bound) -> Interval<Bound> {
     Interval::new(x.clone(), x)
@@ -153,6 +165,13 @@ impl<Bound: Num+Ord> Disjoint<Bound> for Interval<Bound>
   }
 }
 
+impl<Bound: Num+Ord> Disjoint<Interval<Bound>> for Bound
+{
+  fn is_disjoint(&self, value: &Interval<Bound>) -> bool {
+    value.is_disjoint(self)
+  }
+}
+
 impl<Bound: Width+Num> Hull for Interval<Bound>
 {
   type Output = Interval<Bound>;
@@ -161,14 +180,30 @@ impl<Bound: Width+Num> Hull for Interval<Bound>
     else if other.is_empty() { self.clone() }
     else {
       Interval::new(
-        min(self.lower(), other.lower()),
-        max(self.upper(), other.upper())
+        min(self.low(), other.low()),
+        max(self.up(), other.up())
       )
     }
   }
 }
 
-impl<Bound: Num+Ord> Contains<Bound> for Interval<Bound>
+impl<Bound: Width+Num> Hull<Bound> for Interval<Bound>
+{
+  type Output = Interval<Bound>;
+  fn hull(&self, other: &Bound) -> Interval<Bound> {
+    self.hull(&Interval::singleton(other.clone()))
+  }
+}
+
+impl<Bound: Width+Num> Hull<Interval<Bound>> for Bound
+{
+  type Output = Interval<Bound>;
+  fn hull(&self, other: &Interval<Bound>) -> Interval<Bound> {
+    other.hull(self)
+  }
+}
+
+impl<Bound: Ord> Contains<Bound> for Interval<Bound>
 {
   fn contains(&self, value: &Bound) -> bool {
     value >= &self.lb && value <= &self.ub
@@ -204,8 +239,8 @@ impl<Bound: Width+Num> Intersection for Interval<Bound>
   type Output = Interval<Bound>;
   fn intersection(&self, other: &Interval<Bound>) -> Interval<Bound> {
     Interval::new(
-      max(self.lower(), other.lower()),
-      min(self.upper(), other.upper())
+      max(self.low(), other.low()),
+      min(self.up(), other.up())
     )
   }
 }
@@ -235,8 +270,8 @@ impl<Bound: Width+Num> Difference for Interval<Bound>
   //    \/
   //      A /\ [B.ub+1, inf]
   fn difference(&self, other: &Interval<Bound>) -> Interval<Bound> {
-    let left = self.intersection(&Interval::min_lb(other.lower() - Bound::one()));
-    let right = self.intersection(&Interval::max_ub(other.upper() + Bound::one()));
+    let left = self.intersection(&Interval::min_lb(other.low() - Bound::one()));
+    let right = self.intersection(&Interval::max_ub(other.up() + Bound::one()));
     left.hull(&right)
   }
 }
@@ -801,10 +836,10 @@ mod tests {
   #[test]
   fn difference_test() {
     let cases = vec![
-      (zero, zero,          empty),
-      (i1_2, i1_2,          empty),
-      (empty, empty,        empty),
-      (invalid, invalid,    empty)
+      (1, zero, zero,          empty),
+      (2, i1_2, i1_2,          empty),
+      (3, empty, empty,        empty),
+      (4, invalid, invalid,    empty)
     ];
 
     // For each cases (x, y, res)
@@ -815,42 +850,44 @@ mod tests {
     let sym_cases = vec![
       // ||
       // |-|
-      (empty, zero,         (empty, zero)),
-      (invalid, zero,       (empty, zero)),
-      (empty, invalid,      (empty, empty)),
+      (5, empty, zero,         (empty, zero)),
+      (6, invalid, zero,       (empty, zero)),
+      (7, empty, invalid,      (empty, empty)),
       // ||
       //|--|
-      (empty, i1_2,         (empty, i1_2)),
-      (empty, i0_10,        (empty, i0_10)),
-      (invalid, i1_2,       (empty, i1_2)),
+      (8, empty, i1_2,         (empty, i1_2)),
+      (9, empty, i0_10,        (empty, i0_10)),
+      (10, invalid, i1_2,       (empty, i1_2)),
       //  |--|
       // |----|
-      (i1_2, i0_10,         (empty, i0_10)),
+      (11, i1_2, i0_10,         (empty, i0_10)),
       // |--|
       //     |--|
-      (i0_4, i5_10,         (i0_4, i5_10)),
+      (12, i0_4, i5_10,         (i0_4, i5_10)),
       // |--|
       //    |--|
-      (i0_5, i5_10,         ((0,4).to_interval(), i6_10)),
+      (13, i0_5, i5_10,         ((0,4).to_interval(), i6_10)),
       // |---|
       //   |---|
-      (im5_5, i0_10,        (im5_m1, i6_10)),
+      (14, im5_5, i0_10,        (im5_m1, i6_10)),
       // |--|
       //         |--|
-      (i0_10, i20_30,       (i0_10, i20_30)),
+      (15, i0_10, i20_30,       (i0_10, i20_30)),
       // |--|
       // |---|
-      (i0_10, i0_15,        (empty, (11,15).to_interval())),
+      (16, i0_10, i0_15,        (empty, (11,15).to_interval())),
       // |---|
       //  |--|
-      (im5_10, i0_10,       (im5_m1, empty))
+      (17, im5_10, i0_10,       (im5_m1, empty))
     ];
 
-    for (x,y,r) in cases.into_iter() {
+    for (id,x,y,r) in cases.into_iter() {
+      println!("Test #{}", id);
       assert!(x.difference(&y) == r, "{:?} difference {:?} is not equal to {:?}", x, y, r);
     }
 
-    for (x,y,(r1,r2)) in sym_cases.into_iter() {
+    for (id,x,y,(r1,r2)) in sym_cases.into_iter() {
+      println!("Test #{}", id);
       assert!(x.difference(&y) == r1, "{:?} difference {:?} is not equal to {:?}", x, y, r1);
       assert!(y.difference(&x) == r2, "{:?} difference {:?} is not equal to {:?}", y, x, r2);
     }
