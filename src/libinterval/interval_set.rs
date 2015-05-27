@@ -35,6 +35,8 @@ pub struct IntervalSet<Bound: Width> {
   size: Bound::Output
 }
 
+impl<Bound: Width> IntervalKind for IntervalSet<Bound> {}
+
 impl<Bound: Width+Num> IntervalSet<Bound> where
    <Bound as Width>::Output: Clone
 {
@@ -452,6 +454,35 @@ impl<Bound: Width+Num> Overlap for IntervalSet<Bound> {
   }
 }
 
+impl<Bound: Width+Num> Overlap<Bound> for IntervalSet<Bound> {
+  fn overlap(&self, value: &Bound) -> bool {
+    if let Some((l, u)) = self.find_interval(value) {
+      l == u
+    }
+    else {
+      false
+    }
+  }
+}
+
+impl<Bound: Width+Num> Overlap<Option<Bound>> for IntervalSet<Bound> {
+  fn overlap(&self, value: &Option<Bound>) -> bool {
+    value.as_ref().map_or(false, |b| self.overlap(b))
+  }
+}
+
+impl<Bound: Width+Num> Overlap<IntervalSet<Bound>> for Bound {
+  fn overlap(&self, other: &IntervalSet<Bound>) -> bool {
+    other.overlap(self)
+  }
+}
+
+impl<Bound: Width+Num> Overlap<IntervalSet<Bound>> for Option<Bound> {
+  fn overlap(&self, other: &IntervalSet<Bound>) -> bool {
+    other.overlap(self)
+  }
+}
+
 impl<Bound: Width+Num> Disjoint for IntervalSet<Bound> {
   fn is_disjoint(&self, rhs: &IntervalSet<Bound>) -> bool {
     !self.overlap(rhs)
@@ -697,6 +728,14 @@ mod tests {
     assert_eq!(op(&a, &b), expected);
   }
 
+  fn test_binary_value_bool_op<V, F>(test_id: String, a: Vec<(i32,i32)>, b: V, op: F, expected: bool) where
+    F: Fn(&IntervalSet<i32>, &V) -> bool
+  {
+    println!("Info: {}.", test_id);
+    let a = make_interval_set(a);
+    assert_eq!(op(&a, &b), expected);
+  }
+
   fn test_op<F>(test_id: String, a: Vec<(i32,i32)>, op: F, expected: Vec<(i32,i32)>) where
     F: Fn(&IntervalSet<i32>) -> IntervalSet<i32>
   {
@@ -925,7 +964,7 @@ mod tests {
   }
 
   #[test]
-  fn test_overlap() {
+  fn test_overlap_and_is_disjoint() {
     // Note: the first number is the test id, so it should be easy to identify which test has failed.
     // The two first vectors are the operands and the expected result is last.
     let sym_cases = vec![
@@ -968,6 +1007,54 @@ mod tests {
         a.clone(), b.clone(), |x,y| x.overlap(y), expected);
       test_binary_bool_op_sym(format!("test #{} of is_disjoint", id),
         a, b, |x,y| x.is_disjoint(y), !expected);
+    }
+  }
+
+  fn overlap_cases() -> Vec<(u32, Vec<(i32,i32)>, i32, bool)> {
+    vec![
+      (1, vec![], 0, false),
+      (2, vec![(1,2)], 0, false),
+      (3, vec![(1,2)], 1, true),
+      (4, vec![(1,2)], 2, true),
+      (5, vec![(1,2)], 3, false),
+      (6, vec![(1,3),(5,7)], 2, true),
+      (7, vec![(1,3),(5,7)], 6, true),
+      (8, vec![(1,3),(5,7)], 4, false),
+      (9, vec![(1,3),(5,7)], 0, false),
+      (10, vec![(1,3),(5,7)], 8, false)
+    ]
+  }
+
+  #[test]
+  fn test_overlap_bound() {
+    let cases = overlap_cases();
+
+    for (id, a, b, expected) in cases {
+      test_binary_value_bool_op(format!("test #{} of overlap_bound", id),
+        a.clone(), b, |x,y| x.overlap(y), expected);
+      test_binary_value_bool_op(format!("test #{} of overlap_bound", id),
+        a, b, |x,y| y.overlap(x), expected);
+    }
+  }
+
+  #[test]
+  fn test_overlap_option() {
+    let mut cases: Vec<(u32, Vec<(i32,i32)>, Option<i32>, bool)> = overlap_cases().into_iter()
+      .map(|(id,a,b,e)| (id,a,Some(b),e))
+      .collect();
+    cases.extend(
+      vec![
+        (11, vec![], None, false),
+        (12, vec![(1,2)], None, false),
+        (13, vec![(1,3),(5,7)], None, false),
+      ].into_iter()
+    );
+
+    for (id, a, b, expected) in cases {
+      test_binary_value_bool_op(format!("test #{} of overlap_option", id),
+        a.clone(), b, |x,y| x.overlap(y), expected);
+      test_binary_value_bool_op(format!("test #{} of overlap_option", id),
+        a, b, |x,y| y.overlap(x), expected);
     }
   }
 
