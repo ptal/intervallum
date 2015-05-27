@@ -239,7 +239,7 @@ mod tests {
   }
 
   #[test]
-  fn is_disjoint_test() {
+  fn is_disjoint_and_overlap_test() {
     let sym_cases = vec![
       (empty, empty, true),
       (empty, zero, true),
@@ -251,6 +251,8 @@ mod tests {
     for (x,y,r) in sym_cases.into_iter() {
       assert!(x.is_disjoint(&y) == r, "{:?} disjoint {:?} is not equal to {:?}", x, y, r);
       assert!(y.is_disjoint(&x) == r, "{:?} disjoint {:?} is not equal to {:?}", y, x, r);
+      assert!(x.overlap(&y) == !r, "{:?} overlap {:?} is not equal to {:?}", x, y, !r);
+      assert!(y.overlap(&x) == !r, "{:?} overlap {:?} is not equal to {:?}", y, x, !r);
     }
   }
 
@@ -299,22 +301,6 @@ mod tests {
     for (x,y,r1,r2) in cases.into_iter() {
       assert!(x.is_proper_subset(&y) == r1, "{:?} proper_subset {:?} is not equal to {:?}", x, y, r1);
       assert!(y.is_proper_subset(&x) == r2, "{:?} proper_subset {:?} is not equal to {:?}", y, x, r2);
-    }
-  }
-
-  #[test]
-  fn overlap_test() {
-    let sym_cases = vec![
-      (empty, empty, false),
-      (empty, zero, false),
-      (zero, zero, true),
-      (zero, ten, false),
-      (ten, ten, true)
-    ];
-
-    for (x,y,r) in sym_cases.into_iter() {
-      assert!(x.overlap(&y) == r, "{:?} overlap {:?} is not equal to {:?}", x, y, r);
-      assert!(y.overlap(&x) == r, "{:?} overlap {:?} is not equal to {:?}", y, x, r);
     }
   }
 

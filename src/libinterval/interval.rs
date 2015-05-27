@@ -53,6 +53,18 @@ pub struct Interval<Bound> {
   ub: Bound
 }
 
+impl<Bound> IntervalKind for Interval<Bound> {}
+
+impl<Bound: Width+Num> Interval<Bound> {
+  fn into_option(self) -> Option<Bound> {
+    if self.is_empty() { None }
+    else if self.is_singleton() { Some(self.lb) }
+    else {
+      panic!("Only empty interval or singleton can be transformed into an option.");
+    }
+  }
+}
+
 impl<Bound: Width+Num> Eq for Interval<Bound> {}
 
 impl<Bound: Width+Num> PartialEq<Interval<Bound>> for Interval<Bound>
@@ -172,6 +184,55 @@ impl<Bound: Num+Ord> Disjoint<Interval<Bound>> for Bound
   }
 }
 
+impl<Bound: Num+Ord> Disjoint<Option<Bound>> for Interval<Bound>
+{
+  fn is_disjoint(&self, value: &Option<Bound>) -> bool {
+    value.as_ref().map_or(true, |x| self.is_disjoint(x))
+  }
+}
+
+impl<Bound: Num+Ord> Disjoint<Interval<Bound>> for Option<Bound>
+{
+  fn is_disjoint(&self, value: &Interval<Bound>) -> bool {
+    value.is_disjoint(self)
+  }
+}
+
+impl<Bound: Width+Num> Overlap for Interval<Bound>
+{
+  fn overlap(&self, other: &Interval<Bound>) -> bool {
+    !self.is_disjoint(other)
+  }
+}
+
+impl<Bound: Width+Num> Overlap<Bound> for Interval<Bound>
+{
+  fn overlap(&self, other: &Bound) -> bool {
+    !self.is_disjoint(other)
+  }
+}
+
+impl<Bound: Width+Num> Overlap<Interval<Bound>> for Bound
+{
+  fn overlap(&self, other: &Interval<Bound>) -> bool {
+    !self.is_disjoint(other)
+  }
+}
+
+impl<Bound: Width+Num> Overlap<Option<Bound>> for Interval<Bound>
+{
+  fn overlap(&self, other: &Option<Bound>) -> bool {
+    !self.is_disjoint(other)
+  }
+}
+
+impl<Bound: Width+Num> Overlap<Interval<Bound>> for Option<Bound>
+{
+  fn overlap(&self, other: &Interval<Bound>) -> bool {
+    !self.is_disjoint(other)
+  }
+}
+
 impl<Bound: Width+Num> Hull for Interval<Bound>
 {
   type Output = Interval<Bound>;
@@ -227,13 +288,6 @@ impl<Bound: Width+Num> ProperSubset for Interval<Bound>
   }
 }
 
-impl<Bound: Width+Num> Overlap for Interval<Bound>
-{
-  fn overlap(&self, other: &Interval<Bound>) -> bool {
-    !self.is_disjoint(other)
-  }
-}
-
 impl<Bound: Width+Num> Intersection for Interval<Bound>
 {
   type Output = Interval<Bound>;
@@ -255,6 +309,22 @@ impl<Bound: Width+Num> Intersection<Bound> for Interval<Bound>
     else {
       Interval::empty()
     }
+  }
+}
+
+impl<Bound: Width+Num> Intersection<Option<Bound>> for Interval<Bound>
+{
+  type Output = Interval<Bound>;
+  fn intersection(&self, value: &Option<Bound>) -> Interval<Bound> {
+    value.as_ref().map_or(Interval::empty(), |x| self.intersection(x))
+  }
+}
+
+impl<Bound: Width+Num> Intersection<Interval<Bound>> for Option<Bound>
+{
+  type Output = Option<Bound>;
+  fn intersection(&self, other: &Interval<Bound>) -> Option<Bound> {
+    self.as_ref().map_or(None, |x| other.intersection(x).into_option())
   }
 }
 
@@ -288,6 +358,28 @@ impl<Bound: Num+Clone> Difference<Bound> for Interval<Bound>
       this.ub = this.ub - Bound::one();
     }
     this
+  }
+}
+
+impl<Bound: Ord+Num+Clone> Difference<Option<Bound>> for Interval<Bound>
+{
+  type Output = Interval<Bound>;
+  fn difference(&self, value: &Option<Bound>) -> Interval<Bound> {
+    match value {
+      &Some(ref x) => self.difference(x),
+      &None => self.clone()
+    }
+  }
+}
+
+impl<Bound: Ord+Clone> Difference<Interval<Bound>> for Option<Bound>
+{
+  type Output = Option<Bound>;
+  fn difference(&self, other: &Interval<Bound>) -> Option<Bound> {
+    self.as_ref().map_or(None, |x|
+      if other.contains(x) { None }
+      else { Some(x.clone()) }
+    )
   }
 }
 
@@ -699,20 +791,33 @@ mod tests {
   }
 
   #[test]
-  fn intersection_value_test() {
+  fn intersection_value_option_test() {
     let cases = vec![
-      (i0_10, 0, zero),
-      (i0_10, 10, ten),
-      (i0_10, 1, one),
-      (i0_10, 11, empty),
-      (i0_10, -1, empty),
-      (one, 1, one),
-      (one, 0, empty)
+      (1, empty, None,      empty, None),
+      (2, invalid, None,    empty, None),
+      (3, empty, Some(1),   empty, None),
+      (4, i0_10, None,      empty, None),
+      (5, i0_10, Some(0),   zero, Some(0)),
+      (6, i0_10, Some(10),  ten, Some(10)),
+      (7, i0_10, Some(1),   one, Some(1)),
+      (8, i0_10, Some(-1),  empty, None),
+      (9, i0_10, Some(11),  empty, None),
+      (10, one, Some(0),    empty, None),
+      (11, one, Some(1),    one, Some(1)),
     ];
-    for (x,y,r) in cases.into_iter() {
-      assert!(x.intersection(&y) == r, "{:?} intersection {:?} is not equal to {:?}", x, y, r);
+    for (id,x,y,r1,r2) in cases.into_iter() {
+      // Interval /\ Value.
+      if y.is_some() {
+        assert!(x.intersection(y.as_ref().unwrap()) == r1,
+          "Test#{}: {:?} intersection {:?} is not equal to {:?}", id, x, y.as_ref().unwrap(), r1);
+      }
+      // Interval /\ Option<T>
+      assert!(x.intersection(&y) == r1, "Test#{}: {:?} intersection {:?} is not equal to {:?}", id, x, y, r1);
+      // Option<T> /\ Interval
+      assert!(y.intersection(&x) == r2, "Test#{}: {:?} intersection {:?} is not equal to {:?}", id, y, x, r2);
     }
   }
+
 
   #[test]
   fn hull_test() {
@@ -833,6 +938,47 @@ mod tests {
     }
   }
 
+  fn is_disjoint_cases() -> Vec<(u32, Interval<i32>, i32, bool)> {
+    vec![
+      (1, empty, 0, true),
+      (2, invalid, 0, true),
+      (3, i0_4, -1, true),
+      (4, i0_4, 0, false),
+      (5, i0_4, 2, false),
+      (6, i0_4, 3, false),
+      (7, i0_4, 5, true)
+    ]
+  }
+
+  #[test]
+  fn is_disjoint_bound_test() {
+    let cases = is_disjoint_cases();
+    for (id, x,y,r) in cases.into_iter() {
+      assert!(x.is_disjoint(&y) == r, "Test#{}: {:?} is disjoint of {:?} is not equal to {:?}", id, x, y, r);
+      assert!(y.is_disjoint(&x) == r, "Test#{}: {:?} is disjoint of {:?} is not equal to {:?}", id, y, x, r);
+      assert!(x.overlap(&y) == !r, "Test#{}: {:?} overlap {:?} is not equal to {:?}", id, x, y, !r);
+      assert!(y.overlap(&x) == !r, "Test#{}: {:?} overlap {:?} is not equal to {:?}", id, y, x, !r);
+    }
+  }
+
+  #[test]
+  fn is_disjoint_option_test() {
+    let mut cases: Vec<(u32, Interval<i32>, Option<i32>, bool)> = is_disjoint_cases().into_iter()
+      .map(|(id,a,b,e)| (id,a,Some(b),e))
+      .collect();
+    cases.extend(vec![
+      (8, empty, None, true),
+      (9, invalid, None, true),
+      (10, i0_4, None, true)
+    ]);
+    for (id, x,y,r) in cases.into_iter() {
+      assert!(x.is_disjoint(&y) == r, "Test#{}: {:?} is disjoint of {:?} is not equal to {:?}", id, x, y, r);
+      assert!(y.is_disjoint(&x) == r, "Test#{}: {:?} is disjoint of {:?} is not equal to {:?}", id, y, x, r);
+      assert!(x.overlap(&y) == !r, "Test#{}: {:?} overlap {:?} is not equal to {:?}", id, x, y, !r);
+      assert!(y.overlap(&x) == !r, "Test#{}: {:?} overlap {:?} is not equal to {:?}", id, y, x, !r);
+    }
+  }
+
   #[test]
   fn difference_test() {
     let cases = vec![
@@ -894,19 +1040,31 @@ mod tests {
   }
 
   #[test]
-  fn difference_value_test() {
+  fn difference_value_option_test() {
     let cases = vec![
-      (i0_10, 0, i1_10),
-      (i0_10, 10, i0_9),
-      (i0_10, 1, i0_10),
-      (i0_10, 9, i0_10),
-      (i0_10, -1, i0_10),
-      (i0_10, 11, i0_10),
-      (i0_10, 100, i0_10),
-      (one, 1, empty)
+      (1, empty, None,      empty, None),
+      (2, invalid, None,    empty, None),
+      (3, empty, Some(1),   empty, Some(1)),
+      (4, i0_10, None,      i0_10, None),
+      (5, i0_10, Some(0),   i1_10, None),
+      (6, i0_10, Some(10),  i0_9, None),
+      (7, i0_10, Some(1),   i0_10, None),
+      (8, i0_10, Some(9),   i0_10, None),
+      (9, i0_10, Some(-1),  i0_10, Some(-1)),
+      (10, i0_10, Some(11), i0_10, Some(11)),
+      (11, i0_10, Some(100),i0_10, Some(100)),
+      (12, one, Some(1),    empty, None),
     ];
-    for (x,y,r) in cases.into_iter() {
-      assert!(x.difference(&y) == r, "{:?} difference {:?} is not equal to {:?}", x, y, r);
+    for (id,x,y,r1,r2) in cases.into_iter() {
+      // Interval - Value.
+      if y.is_some() {
+        assert!(x.difference(y.as_ref().unwrap()) == r1,
+          "Test#{}: {:?} difference {:?} is not equal to {:?}", id, x, y.as_ref().unwrap(), r1);
+      }
+      // Interval - Option<T>
+      assert!(x.difference(&y) == r1, "Test#{}: {:?} difference {:?} is not equal to {:?}", id, x, y, r1);
+      // Option<T> - Interval
+      assert!(y.difference(&x) == r2, "Test#{}: {:?} difference {:?} is not equal to {:?}", id, y, x, r2);
     }
   }
 
