@@ -26,6 +26,10 @@ use std::ops::Deref;
 use num::{One, Zero, Unsigned};
 use num;
 
+// Markers
+
+pub trait IntervalKind {}
+
 // Basic set operations
 
 pub trait Intersection<RHS = Self> {
@@ -186,7 +190,7 @@ pub trait StrictShrinkRight<Bound> {
 
 impl<Bound, R> StrictShrinkLeft<Bound> for R where
   Bound: num::PrimInt,
-  R: ShrinkLeft<Bound> + Empty
+  R: ShrinkLeft<Bound> + Empty + IntervalKind
 {
   fn strict_shrink_left(&self, lb: Bound) -> R {
     if lb == Bound::max_value() {
@@ -199,7 +203,7 @@ impl<Bound, R> StrictShrinkLeft<Bound> for R where
 
 impl<Bound, R> StrictShrinkRight<Bound> for R where
   Bound: num::PrimInt,
-  R: ShrinkRight<Bound> + Empty
+  R: ShrinkRight<Bound> + Empty + IntervalKind
 {
   fn strict_shrink_right(&self, ub: Bound) -> R {
     if ub == Bound::min_value() {
