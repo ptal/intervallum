@@ -23,9 +23,9 @@ pub struct HashSet<T, S = RandomState>
   hs: StdHashSet<T, S>
 }
 
-impl<T, S> HashSet<T, S>
-where T: Eq + Hash,
-      S: HashState
+impl<T, S> HashSet<T, S> where
+  T: Eq + Hash,
+  S: HashState
 {
   pub fn wrap(hs: StdHashSet<T, S>) -> HashSet<T, S> {
     HashSet{hs: hs}

@@ -46,12 +46,11 @@ pub mod btree_set;
 pub mod enum_set;
 pub mod bit_set;
 pub mod ops;
-pub mod option;
+pub mod optional;
 pub mod primitives;
 
 pub use ncollections::hash_set::HashSet;
 pub use ncollections::btree_set::BTreeSet;
 pub use ncollections::enum_set::EnumSet;
 pub use ncollections::bit_set::BitSet;
-
-
+pub use ncollections::optional::Optional;

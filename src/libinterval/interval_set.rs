@@ -20,6 +20,7 @@
 //! [interval](../interval/index.html)
 
 use interval::Interval;
+use ncollections::optional::*;
 use ncollections::ops::*;
 use ops::*;
 use std::iter::{Peekable, IntoIterator};
@@ -465,8 +466,8 @@ impl<Bound: Width+Num> Overlap<Bound> for IntervalSet<Bound> {
   }
 }
 
-impl<Bound: Width+Num> Overlap<Option<Bound>> for IntervalSet<Bound> {
-  fn overlap(&self, value: &Option<Bound>) -> bool {
+impl<Bound: Width+Num> Overlap<Optional<Bound>> for IntervalSet<Bound> {
+  fn overlap(&self, value: &Optional<Bound>) -> bool {
     value.as_ref().map_or(false, |b| self.overlap(b))
   }
 }
@@ -477,7 +478,7 @@ impl<Bound: Width+Num> Overlap<IntervalSet<Bound>> for Bound {
   }
 }
 
-impl<Bound: Width+Num> Overlap<IntervalSet<Bound>> for Option<Bound> {
+impl<Bound: Width+Num> Overlap<IntervalSet<Bound>> for Optional<Bound> {
   fn overlap(&self, other: &IntervalSet<Bound>) -> bool {
     other.overlap(self)
   }
@@ -652,6 +653,7 @@ impl<Bound: Display+Width+Num> Display for IntervalSet<Bound> where
 #[cfg(test)]
 mod tests {
   use super::*;
+  use ncollections::optional::*;
   use ncollections::ops::*;
   use ops::*;
   use interval::*;
@@ -1039,14 +1041,14 @@ mod tests {
 
   #[test]
   fn test_overlap_option() {
-    let mut cases: Vec<(u32, Vec<(i32,i32)>, Option<i32>, bool)> = overlap_cases().into_iter()
-      .map(|(id,a,b,e)| (id,a,Some(b),e))
+    let mut cases: Vec<(u32, Vec<(i32,i32)>, Optional<i32>, bool)> = overlap_cases().into_iter()
+      .map(|(id,a,b,e)| (id,a,Optional::singleton(b),e))
       .collect();
     cases.extend(
       vec![
-        (11, vec![], None, false),
-        (12, vec![(1,2)], None, false),
-        (13, vec![(1,3),(5,7)], None, false),
+        (11, vec![], Optional::empty(), false),
+        (12, vec![(1,2)], Optional::empty(), false),
+        (13, vec![(1,3),(5,7)], Optional::empty(), false),
       ].into_iter()
     );
 

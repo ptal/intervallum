@@ -38,6 +38,7 @@
 //! # See also
 //! [interval set](../interval_set/index.html), [general operations on collection](../ncollections/ops/index.html).
 
+use ncollections::optional::*;
 use ncollections::ops::*;
 use ops::*;
 
@@ -56,9 +57,9 @@ pub struct Interval<Bound> {
 impl<Bound> IntervalKind for Interval<Bound> {}
 
 impl<Bound: Width+Num> Interval<Bound> {
-  fn into_option(self) -> Option<Bound> {
-    if self.is_empty() { None }
-    else if self.is_singleton() { Some(self.lb) }
+  fn into_optional(self) -> Optional<Bound> {
+    if self.is_empty() { Optional::empty() }
+    else if self.is_singleton() { Optional::singleton(self.lb) }
     else {
       panic!("Only empty interval or singleton can be transformed into an option.");
     }
@@ -184,14 +185,14 @@ impl<Bound: Num+Ord> Disjoint<Interval<Bound>> for Bound
   }
 }
 
-impl<Bound: Num+Ord> Disjoint<Option<Bound>> for Interval<Bound>
+impl<Bound: Num+Ord> Disjoint<Optional<Bound>> for Interval<Bound>
 {
-  fn is_disjoint(&self, value: &Option<Bound>) -> bool {
+  fn is_disjoint(&self, value: &Optional<Bound>) -> bool {
     value.as_ref().map_or(true, |x| self.is_disjoint(x))
   }
 }
 
-impl<Bound: Num+Ord> Disjoint<Interval<Bound>> for Option<Bound>
+impl<Bound: Num+Ord> Disjoint<Interval<Bound>> for Optional<Bound>
 {
   fn is_disjoint(&self, value: &Interval<Bound>) -> bool {
     value.is_disjoint(self)
@@ -219,14 +220,14 @@ impl<Bound: Width+Num> Overlap<Interval<Bound>> for Bound
   }
 }
 
-impl<Bound: Width+Num> Overlap<Option<Bound>> for Interval<Bound>
+impl<Bound: Width+Num> Overlap<Optional<Bound>> for Interval<Bound>
 {
-  fn overlap(&self, other: &Option<Bound>) -> bool {
+  fn overlap(&self, other: &Optional<Bound>) -> bool {
     !self.is_disjoint(other)
   }
 }
 
-impl<Bound: Width+Num> Overlap<Interval<Bound>> for Option<Bound>
+impl<Bound: Width+Num> Overlap<Interval<Bound>> for Optional<Bound>
 {
   fn overlap(&self, other: &Interval<Bound>) -> bool {
     !self.is_disjoint(other)
@@ -312,19 +313,19 @@ impl<Bound: Width+Num> Intersection<Bound> for Interval<Bound>
   }
 }
 
-impl<Bound: Width+Num> Intersection<Option<Bound>> for Interval<Bound>
+impl<Bound: Width+Num> Intersection<Optional<Bound>> for Interval<Bound>
 {
   type Output = Interval<Bound>;
-  fn intersection(&self, value: &Option<Bound>) -> Interval<Bound> {
+  fn intersection(&self, value: &Optional<Bound>) -> Interval<Bound> {
     value.as_ref().map_or(Interval::empty(), |x| self.intersection(x))
   }
 }
 
-impl<Bound: Width+Num> Intersection<Interval<Bound>> for Option<Bound>
+impl<Bound: Width+Num> Intersection<Interval<Bound>> for Optional<Bound>
 {
-  type Output = Option<Bound>;
-  fn intersection(&self, other: &Interval<Bound>) -> Option<Bound> {
-    self.as_ref().map_or(None, |x| other.intersection(x).into_option())
+  type Output = Optional<Bound>;
+  fn intersection(&self, other: &Interval<Bound>) -> Optional<Bound> {
+    self.as_ref().map_or(Optional::empty(), |x| other.intersection(x).into_optional())
   }
 }
 
@@ -361,24 +362,21 @@ impl<Bound: Num+Clone> Difference<Bound> for Interval<Bound>
   }
 }
 
-impl<Bound: Ord+Num+Clone> Difference<Option<Bound>> for Interval<Bound>
+impl<Bound: Ord+Num+Clone> Difference<Optional<Bound>> for Interval<Bound>
 {
   type Output = Interval<Bound>;
-  fn difference(&self, value: &Option<Bound>) -> Interval<Bound> {
-    match value {
-      &Some(ref x) => self.difference(x),
-      &None => self.clone()
-    }
+  fn difference(&self, value: &Optional<Bound>) -> Interval<Bound> {
+    value.as_ref().map_or_else(|| self.clone(), |x| self.difference(x))
   }
 }
 
-impl<Bound: Ord+Clone> Difference<Interval<Bound>> for Option<Bound>
+impl<Bound: Ord+Clone> Difference<Interval<Bound>> for Optional<Bound>
 {
-  type Output = Option<Bound>;
-  fn difference(&self, other: &Interval<Bound>) -> Option<Bound> {
-    self.as_ref().map_or(None, |x|
-      if other.contains(x) { None }
-      else { Some(x.clone()) }
+  type Output = Optional<Bound>;
+  fn difference(&self, other: &Interval<Bound>) -> Optional<Bound> {
+    self.as_ref().map_or(Optional::empty(), |x|
+      if other.contains(x) { Optional::empty() }
+      else { Optional::singleton(x.clone()) }
     )
   }
 }
@@ -539,6 +537,7 @@ impl<Bound: Width+Num> ToInterval<Bound> for Bound {
 #[cfg(test)]
 mod tests {
   use super::*;
+  use ncollections::optional::*;
   use ncollections::ops::*;
   use ops::*;
 
@@ -791,7 +790,7 @@ mod tests {
   }
 
   #[test]
-  fn intersection_value_option_test() {
+  fn intersection_value_optional_test() {
     let cases = vec![
       (1, empty, None,      empty, None),
       (2, invalid, None,    empty, None),
@@ -806,8 +805,10 @@ mod tests {
       (11, one, Some(1),    one, Some(1)),
     ];
     for (id,x,y,r1,r2) in cases.into_iter() {
+      let y = y.map_or(Optional::empty(), |y| Optional::singleton(y));
+      let r2 = r2.map_or(Optional::empty(), |r2| Optional::singleton(r2));
       // Interval /\ Value.
-      if y.is_some() {
+      if !y.is_empty() {
         assert!(x.intersection(y.as_ref().unwrap()) == r1,
           "Test#{}: {:?} intersection {:?} is not equal to {:?}", id, x, y.as_ref().unwrap(), r1);
       }
@@ -963,13 +964,13 @@ mod tests {
 
   #[test]
   fn is_disjoint_option_test() {
-    let mut cases: Vec<(u32, Interval<i32>, Option<i32>, bool)> = is_disjoint_cases().into_iter()
-      .map(|(id,a,b,e)| (id,a,Some(b),e))
+    let mut cases: Vec<(u32, Interval<i32>, Optional<i32>, bool)> = is_disjoint_cases().into_iter()
+      .map(|(id,a,b,e)| (id, a, Optional::singleton(b), e))
       .collect();
     cases.extend(vec![
-      (8, empty, None, true),
-      (9, invalid, None, true),
-      (10, i0_4, None, true)
+      (8, empty, Optional::empty(), true),
+      (9, invalid, Optional::empty(), true),
+      (10, i0_4, Optional::empty(), true)
     ]);
     for (id, x,y,r) in cases.into_iter() {
       assert!(x.is_disjoint(&y) == r, "Test#{}: {:?} is disjoint of {:?} is not equal to {:?}", id, x, y, r);
@@ -1056,6 +1057,8 @@ mod tests {
       (12, one, Some(1),    empty, None),
     ];
     for (id,x,y,r1,r2) in cases.into_iter() {
+      let y = y.map_or(Optional::empty(), |y| Optional::singleton(y));
+      let r2 = r2.map_or(Optional::empty(), |r2| Optional::singleton(r2));
       // Interval - Value.
       if y.is_some() {
         assert!(x.difference(y.as_ref().unwrap()) == r1,

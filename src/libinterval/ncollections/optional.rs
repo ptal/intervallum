@@ -13,8 +13,41 @@
 // limitations under the License.
 
 use ncollections::ops::*;
+use std::ops::*;
 
-impl<T> Cardinality for Option<T>
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
+pub struct Optional<T>
+{
+  value: Option<T>
+}
+
+impl<T> Optional<T>
+{
+  pub fn wrap(value: Option<T>) -> Optional<T> {
+    Optional {
+      value: value
+    }
+  }
+}
+
+impl<T> Deref for Optional<T>
+{
+  type Target = Option<T>;
+
+  fn deref<'a>(&'a self) -> &'a Option<T> {
+    &self.value
+  }
+}
+
+impl<T> DerefMut for Optional<T>
+{
+  fn deref_mut<'a>(&'a mut self) -> &'a mut Option<T> {
+    &mut self.value
+  }
+}
+
+
+impl<T> Cardinality for Optional<T>
 {
   type Size = usize;
   fn size(&self) -> usize {
@@ -22,35 +55,35 @@ impl<T> Cardinality for Option<T>
   }
 }
 
-impl<T> Singleton<T> for Option<T> {
-  fn singleton(value: T) -> Option<T> {
-    Some(value)
+impl<T> Singleton<T> for Optional<T> {
+  fn singleton(value: T) -> Optional<T> {
+    Optional::wrap(Some(value))
   }
 }
 
-impl<T> Empty for Option<T> {
-  fn empty() -> Option<T> {
-    None
+impl<T> Empty for Optional<T> {
+  fn empty() -> Optional<T> {
+    Optional::wrap(None)
   }
 }
 
-impl<T: Bounded> Bounded for Option<T> {
+impl<T: Bounded> Bounded for Optional<T> {
   type Bound = T::Bound;
   fn lower(&self) -> T::Bound {
-    debug_assert!(self.is_some(), "Cannot access lower bound on empty `Option` type.");
+    debug_assert!(!self.is_empty(), "Cannot access lower bound on empty `Option` type.");
     self.as_ref().unwrap().lower()
   }
   fn upper(&self) -> T::Bound {
-    debug_assert!(self.is_some(), "Cannot access upper bound on empty `Option` type.");
+    debug_assert!(!self.is_empty(), "Cannot access upper bound on empty `Option` type.");
     self.as_ref().unwrap().upper()
   }
 }
 
-impl<T: PartialEq+Clone> Intersection for Option<T> {
-  type Output = Option<T>;
-  fn intersection(&self, other: &Option<T>) -> Option<T> {
+impl<T: PartialEq+Clone> Intersection for Optional<T> {
+  type Output = Optional<T>;
+  fn intersection(&self, other: &Optional<T>) -> Optional<T> {
     if self.is_empty() || other.is_empty() || self != other {
-      None
+      Optional::empty()
     }
     else {
       self.clone()
@@ -58,11 +91,11 @@ impl<T: PartialEq+Clone> Intersection for Option<T> {
   }
 }
 
-impl<T: PartialEq+Clone> Difference for Option<T> {
-  type Output = Option<T>;
-  fn difference(&self, other: &Option<T>) -> Option<T> {
+impl<T: PartialEq+Clone> Difference for Optional<T> {
+  type Output = Optional<T>;
+  fn difference(&self, other: &Optional<T>) -> Optional<T> {
     if self.is_empty() || self == other {
-      None
+      Optional::empty()
     }
     else {
       self.clone()
@@ -70,16 +103,16 @@ impl<T: PartialEq+Clone> Difference for Option<T> {
   }
 }
 
-impl<T, U> Disjoint<Option<U>> for Option<T> where
+impl<T, U> Disjoint<Optional<U>> for Optional<T> where
   T: Disjoint<U>
 {
-  fn is_disjoint(&self, other: &Option<U>) -> bool {
+  fn is_disjoint(&self, other: &Optional<U>) -> bool {
     self.is_empty() || other.is_empty() ||
     self.as_ref().unwrap().is_disjoint(other.as_ref().unwrap())
   }
 }
 
-impl<U, T> Contains<U> for Option<T> where
+impl<U, T> Contains<U> for Optional<T> where
   T: Contains<U>
 {
   fn contains(&self, value: &U) -> bool {
@@ -87,10 +120,10 @@ impl<U, T> Contains<U> for Option<T> where
   }
 }
 
-impl<T, U> Subset<Option<U>> for Option<T> where
+impl<T, U> Subset<Optional<U>> for Optional<T> where
   T: Subset<U>
 {
-  fn is_subset(&self, other: &Option<U>) -> bool {
+  fn is_subset(&self, other: &Optional<U>) -> bool {
     if self.is_empty() { true }
     else if other.is_empty() { false }
     else {
@@ -99,18 +132,18 @@ impl<T, U> Subset<Option<U>> for Option<T> where
   }
 }
 
-impl<T> ProperSubset for Option<T> where
+impl<T> ProperSubset for Optional<T> where
   T: Subset + PartialEq
 {
-  fn is_proper_subset(&self, other: &Option<T>) -> bool {
+  fn is_proper_subset(&self, other: &Optional<T>) -> bool {
     self.is_subset(other) && self != other
   }
 }
 
-impl<T> Overlap for Option<T> where
+impl<T> Overlap for Optional<T> where
   T: Overlap
 {
-  fn overlap(&self, other: &Option<T>) -> bool {
+  fn overlap(&self, other: &Optional<T>) -> bool {
     if self.is_empty() || other.is_empty() { false }
     else {
       self.as_ref().unwrap().overlap(other.as_ref().unwrap())
@@ -118,17 +151,17 @@ impl<T> Overlap for Option<T> where
   }
 }
 
-fn shrink_if<T, F>(value: &Option<T>, bound: T, cond: F) -> Option<T> where
+fn shrink_if<T, F>(value: &Optional<T>, bound: T, cond: F) -> Optional<T> where
   T: Ord+Clone,
   F: FnOnce(&T, &T) -> bool
 {
-  match value {
-    &Some(ref x) if cond(x, &bound) => Some(x.clone()),
-    _ => None
+  match &value.value {
+    &Some(ref x) if cond(x, &bound) => Optional::singleton(x.clone()),
+    _ => Optional::empty()
   }
 }
 
-impl<T> ShrinkLeft<T> for Option<T> where
+impl<T> ShrinkLeft<T> for Optional<T> where
   T: Ord+Clone
 {
   fn shrink_left(&self, lb: T) -> Self {
@@ -136,7 +169,7 @@ impl<T> ShrinkLeft<T> for Option<T> where
   }
 }
 
-impl<T> ShrinkRight<T> for Option<T> where
+impl<T> ShrinkRight<T> for Optional<T> where
   T: Ord+Clone
 {
   fn shrink_right(&self, ub: T) -> Self {
@@ -144,7 +177,7 @@ impl<T> ShrinkRight<T> for Option<T> where
   }
 }
 
-impl<T> StrictShrinkLeft<T> for Option<T> where
+impl<T> StrictShrinkLeft<T> for Optional<T> where
   T: Ord+Clone
 {
   fn strict_shrink_left(&self, lb: T) -> Self {
@@ -152,7 +185,7 @@ impl<T> StrictShrinkLeft<T> for Option<T> where
   }
 }
 
-impl<T> StrictShrinkRight<T> for Option<T> where
+impl<T> StrictShrinkRight<T> for Optional<T> where
   T: Ord+Clone
 {
   fn strict_shrink_right(&self, ub: T) -> Self {
@@ -163,11 +196,12 @@ impl<T> StrictShrinkRight<T> for Option<T> where
 #[allow(non_upper_case_globals)]
 #[cfg(test)]
 mod tests {
+  use super::*;
   use ncollections::ops::*;
 
-  const empty: Option<i32> = None;
-  const zero: Option<i32> = Some(0);
-  const ten: Option<i32> = Some(10);
+  const empty: Optional<i32> = Optional { value: None };
+  const zero: Optional<i32> = Optional { value: Some(0) };
+  const ten: Optional<i32> = Optional { value: Some(10) };
 
   #[test]
   fn cardinality_test() {
