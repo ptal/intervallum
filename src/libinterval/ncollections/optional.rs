@@ -235,6 +235,79 @@ impl<T> Mul<Optional<T>> for Optional<T> where
   }
 }
 
+fn binary_value_map<T, F>(x: Optional<T>, y: T, f: F) -> Optional<T> where
+  F: FnOnce(T, T) -> T
+{
+  x.unwrap().map_or(Optional::empty(), |x|
+      Optional::singleton(f(x, y)))
+}
+
+impl<T> Add<T> for Optional<T> where
+  T: Add<T, Output=T>
+{
+  type Output = Optional<T>;
+
+  fn add(self, other: T) -> Optional<T> {
+    binary_value_map(self, other, T::add)
+  }
+}
+
+impl<T> Sub<T> for Optional<T> where
+  T: Sub<T, Output=T>
+{
+  type Output = Optional<T>;
+
+  fn sub(self, other: T) -> Optional<T> {
+    binary_value_map(self, other, T::sub)
+  }
+}
+
+impl<T> Mul<T> for Optional<T> where
+  T: Mul<T, Output=T>
+{
+  type Output = Optional<T>;
+
+  fn mul(self, other: T) -> Optional<T> {
+    binary_value_map(self, other, T::mul)
+  }
+}
+
+macro_rules! integer_optional_arithmetics
+{
+  ( $( $source:ty ),* ) =>
+  {$(
+    impl Add<Optional<$source>> for $source
+    {
+      type Output = Optional<$source>;
+
+      fn add(self, other: Optional<$source>) -> Optional<$source> {
+        other.add(self)
+      }
+    }
+
+    impl Sub<Optional<$source>> for $source
+    {
+      type Output = Optional<$source>;
+
+      fn sub(self, other: Optional<$source>) -> Optional<$source> {
+        binary_value_map(other, self, |x, y| y - x)
+      }
+    }
+
+    impl Mul<Optional<$source>> for $source
+    {
+      type Output = Optional<$source>;
+
+      fn mul(self, other: Optional<$source>) -> Optional<$source> {
+        other.mul(self)
+      }
+    }
+  )*}
+}
+
+integer_optional_arithmetics!(i8,u8,i16,u16,i32,u32,i64,u64,isize,usize);
+
+
 #[allow(non_upper_case_globals)]
 #[cfg(test)]
 mod tests {
