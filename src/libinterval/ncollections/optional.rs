@@ -28,6 +28,10 @@ impl<T> Optional<T>
       value: value
     }
   }
+
+  pub fn unwrap(self) -> Option<T> {
+    self.value
+  }
 }
 
 impl<T> Deref for Optional<T>
@@ -190,6 +194,44 @@ impl<T> StrictShrinkRight<T> for Optional<T> where
 {
   fn strict_shrink_right(&self, ub: T) -> Self {
     shrink_if(self, ub, |x, ub| x < ub)
+  }
+}
+
+fn binary_map<T, F>(x: Optional<T>, y: Optional<T>, f: F) -> Optional<T> where
+  F: FnOnce(T, T) -> T
+{
+  x.unwrap().map_or(Optional::empty(), |x|
+    y.unwrap().map_or(Optional::empty(), |y|
+      Optional::singleton(f(x, y))))
+}
+
+impl<T> Add<Optional<T>> for Optional<T> where
+  T: Add<T, Output=T>
+{
+  type Output = Optional<T>;
+
+  fn add(self, other: Optional<T>) -> Optional<T> {
+    binary_map(self, other, T::add)
+  }
+}
+
+impl<T> Sub<Optional<T>> for Optional<T> where
+  T: Sub<T, Output=T>
+{
+  type Output = Optional<T>;
+
+  fn sub(self, other: Optional<T>) -> Optional<T> {
+    binary_map(self, other, T::sub)
+  }
+}
+
+impl<T> Mul<Optional<T>> for Optional<T> where
+  T: Mul<T, Output=T>
+{
+  type Output = Optional<T>;
+
+  fn mul(self, other: Optional<T>) -> Optional<T> {
+    binary_map(self, other, T::mul)
   }
 }
 
@@ -357,6 +399,25 @@ mod tests {
       assert!(x.shrink_right(y) == r2, "{:?} shrink_right {:?} is not equal to {:?}", x, y, r2);
       assert!(x.strict_shrink_left(y) == r3, "{:?} strict_shrink_left {:?} is not equal to {:?}", x, y, r3);
       assert!(x.strict_shrink_right(y) == r4, "{:?} strict_shrink_right {:?} is not equal to {:?}", x, y, r4);
+    }
+  }
+
+  #[test]
+  fn arithmetics_tests() {
+    let twenty = Optional::singleton(20);
+    let one_hundred = Optional::singleton(100);
+    let cases = vec![
+      // x,     y,    x+y,   x-y,   x*y
+      (empty, empty, empty, empty, empty),
+      (empty, ten,   empty, empty, empty),
+      (ten,   empty, empty, empty, empty),
+      (ten,   zero,  ten,   ten,   zero),
+      (ten,   ten,   twenty,zero,  one_hundred)
+    ];
+    for (x,y,add,sub,mul) in cases.into_iter() {
+      assert!(x + y == add, "{:?} + {:?} is not equal to {:?}", x, y, add);
+      assert!(x - y == sub, "{:?} - {:?} is not equal to {:?}", x, y, sub);
+      assert!(x * y == mul, "{:?} * {:?} is not equal to {:?}", x, y, mul);
     }
   }
 }
