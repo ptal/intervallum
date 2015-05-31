@@ -107,6 +107,60 @@ impl<T: PartialEq+Clone> Difference for Optional<T> {
   }
 }
 
+impl<T: PartialEq+Clone> Intersection<T> for Optional<T> {
+  type Output = Optional<T>;
+  fn intersection(&self, other: &T) -> Optional<T> {
+    if self.is_empty() || self.as_ref().unwrap() != other {
+      Optional::empty()
+    }
+    else {
+      self.clone()
+    }
+  }
+}
+
+impl<T: PartialEq+Clone> Difference<T> for Optional<T> {
+  type Output = Optional<T>;
+  fn difference(&self, other: &T) -> Optional<T> {
+    if self.is_empty() || self.as_ref().unwrap() == other {
+      Optional::empty()
+    }
+    else {
+      self.clone()
+    }
+  }
+}
+
+macro_rules! integer_optional_set_operations
+{
+  ( $( $source:ty ),* ) =>
+  {$(
+    impl Intersection<Optional<$source>> for $source
+    {
+      type Output = Optional<$source>;
+      fn intersection(&self, other: &Optional<$source>) -> Optional<$source> {
+        other.intersection(self)
+      }
+    }
+
+    impl Difference<Optional<$source>> for $source
+    {
+      type Output = Optional<$source>;
+
+      fn difference(&self, other: &Optional<$source>) -> Optional<$source> {
+        if other.is_empty() || self != other.as_ref().unwrap() {
+          Optional::singleton(self.clone())
+        }
+        else {
+          Optional::empty()
+        }
+      }
+    }
+  )*}
+}
+
+integer_optional_set_operations!(i8,u8,i16,u16,i32,u32,i64,u64,isize,usize);
+
 impl<T, U> Disjoint<Optional<U>> for Optional<T> where
   T: Disjoint<U>
 {
@@ -307,7 +361,6 @@ macro_rules! integer_optional_arithmetics
 
 integer_optional_arithmetics!(i8,u8,i16,u16,i32,u32,i64,u64,isize,usize);
 
-
 #[allow(non_upper_case_globals)]
 #[cfg(test)]
 mod tests {
@@ -379,6 +432,37 @@ mod tests {
       (zero, zero,    empty, empty),
       (zero, ten,     zero, ten),
       (ten, ten,      empty, empty)
+    ];
+
+    for (x,y,r1,r2) in cases.into_iter() {
+      assert!(x.difference(&y) == r1, "{:?} difference {:?} is not equal to {:?}", x, y, r1);
+      assert!(y.difference(&x) == r2, "{:?} difference {:?} is not equal to {:?}", y, x, r2);
+    }
+  }
+
+  #[test]
+  fn intersection_value_test() {
+    let sym_cases = vec![
+      (empty, 0, empty),
+      (empty, 1, empty),
+      (zero, 0, zero),
+      (zero, 1, empty),
+      (ten, 10, ten)
+    ];
+
+    for (x,y,r) in sym_cases.into_iter() {
+      assert!(x.intersection(&y) == r, "{:?} intersection {:?} is not equal to {:?}", x, y, r);
+      assert!(y.intersection(&x) == r, "{:?} intersection {:?} is not equal to {:?}", y, x, r);
+    }
+  }
+
+  #[test]
+  fn difference_value_test() {
+    let cases = vec![
+      (empty, 0,  empty, zero),
+      (zero, 0,   empty, empty),
+      (zero, 10,  zero, ten),
+      (ten,  10,  empty, empty)
     ];
 
     for (x,y,r1,r2) in cases.into_iter() {
