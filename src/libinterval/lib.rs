@@ -35,7 +35,7 @@
 #![crate_name = "interval"]
 #![crate_type = "dylib"]
 
-#![feature(core, collections, std_misc)]
+#![feature(core, collections, hashmap_hasher, enumset, bitset, iter_min_max, result_fold)]
 
 extern crate collections;
 extern crate num;

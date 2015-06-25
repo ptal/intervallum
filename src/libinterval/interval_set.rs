@@ -129,7 +129,7 @@ impl<Bound: Width+Num> IntervalSet<Bound> where
     debug_assert!(self.span_slice(left, right).contains(value));
 
     while left <= right {
-      let mid_idx = (left + right) / 2;
+      let mid_idx = left + (right - left) / 2;
       let mid = &self.intervals[mid_idx];
       if &mid.lower() > value {
         right = mid_idx - 1;
