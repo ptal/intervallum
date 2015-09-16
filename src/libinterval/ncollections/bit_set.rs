@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::BitSet as StdBitSet;
+use bit_set::BitSet as StdBitSet;
 use std::ops::{Deref, DerefMut};
 
 pub struct BitSet

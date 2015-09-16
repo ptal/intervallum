@@ -25,7 +25,6 @@ use ncollections::ops::*;
 use ops::*;
 use std::iter::{Peekable, IntoIterator};
 use std::fmt::{Formatter, Display, Error};
-use std::result::fold;
 use std::ops::{Add, Sub, Mul};
 
 use num::{Zero, One, Num};
@@ -641,11 +640,11 @@ impl<Bound: Display+Width+Num> Display for IntervalSet<Bound> where
  <Bound as Width>::Output: Display
 {
   fn fmt(&self, formatter: &mut Formatter) -> Result<(), Error> {
-    formatter.write_fmt(format_args!("{}{}", self.size(), "#{"))
-    .and_then(|_| fold(self.intervals.iter().map(|i|
-      formatter.write_fmt(format_args!("{}", i))), (), |_,_|()))
-    .and_then(|_|
-      formatter.write_str("}"))
+    try!(formatter.write_fmt(format_args!("{}{}", self.size(), "#{")));
+    for interval in &self.intervals  {
+      try!(formatter.write_fmt(format_args!("{}", interval)));
+    }
+    formatter.write_str("}")
   }
 }
 

@@ -35,10 +35,11 @@
 #![crate_name = "interval"]
 #![crate_type = "dylib"]
 
-#![feature(core, collections, hashmap_hasher, enumset, bitset, iter_min_max, result_fold)]
+#![feature(core, collections, hashmap_hasher, enumset)]
 
 extern crate collections;
 extern crate num;
+extern crate bit_set;
 
 #[macro_use]
 pub mod ncollections;

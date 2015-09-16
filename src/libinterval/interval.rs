@@ -97,7 +97,7 @@ impl<Bound: Width+Num> Interval<Bound>
   }
 }
 
-impl<Bound: Width+Ord> Range<Bound> for Interval<Bound>
+impl<Bound: Width> Range<Bound> for Interval<Bound>
 {
   fn new(lb: Bound, ub: Bound) -> Interval<Bound> {
     debug_assert!(lb >= <Bound as Width>::min_value(),
@@ -108,7 +108,7 @@ impl<Bound: Width+Ord> Range<Bound> for Interval<Bound>
   }
 }
 
-impl<Bound: Num+PartialOrd+Width+Clone> Bounded for Interval<Bound>
+impl<Bound: Num+Width+Clone> Bounded for Interval<Bound>
 {
   type Bound = Bound;
 
@@ -462,6 +462,52 @@ impl<'a, 'b, Bound: Num+Width+Clone> Sub<&'b Bound> for &'a Interval<Bound> {
 
 forward_all_binop!(impl<Bound: +Num+Width> Mul for Interval<Bound>, mul);
 
+// Adapted from the code found in the Rust compiler sources.
+// Rational: min_max was removed.
+fn min_max<Iter, Item>(mut iter: Iter) -> (Item, Item) where
+ Iter: Iterator<Item=Item>,
+ Item: Ord
+{
+  debug_assert!(iter.size_hint().0 > 2,
+    "`min_max` expects an iterator (`iter`) yielding at least two elements.");
+  let (mut min, mut max) = {
+    let x = iter.next().unwrap();
+    let y = iter.next().unwrap();
+    if x <= y {(x, y)} else {(y, x)}
+  };
+
+  loop {
+      // `first` and `second` are the two next elements we want to look
+      // at.  We first compare `first` and `second` (#1). The smaller one
+      // is then compared to current minimum (#2). The larger one is
+      // compared to current maximum (#3). This way we do 3 comparisons
+      // for 2 elements.
+      let first = match iter.next() {
+          None => break,
+          Some(x) => x
+      };
+      let second = match iter.next() {
+          None => {
+              if first < min {
+                  min = first;
+              } else if first >= max {
+                  max = first;
+              }
+              break;
+          }
+          Some(x) => x
+      };
+      if first <= second {
+          if first < min { min = first }
+          if second >= max { max = second }
+      } else {
+          if second < min { min = second }
+          if first >= max { max = first }
+      }
+  }
+  (min, max)
+}
+
 impl<'a, 'b, Bound: Num+Width> Mul<&'b Interval<Bound>> for &'a Interval<Bound> {
   type Output = Interval<Bound>;
 
@@ -470,11 +516,11 @@ impl<'a, 'b, Bound: Num+Width> Mul<&'b Interval<Bound>> for &'a Interval<Bound> 
     if self.is_empty() || other.is_empty() {
       Interval::empty()
     } else {
-      let (min, max) = vec![
+      let (min, max) = min_max(vec![
         self.lower() * other.lower(),
         self.lower() * other.upper(),
         self.upper() * other.lower(),
-        self.upper() * other.upper()].into_iter().min_max().into_option().unwrap();
+        self.upper() * other.upper()].into_iter());
       Interval::new(min, max)
     }
   }

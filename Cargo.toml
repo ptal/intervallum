@@ -1,7 +1,7 @@
 [package]
 
 name = "intervallum"
-version = "0.4.8"
+version = "0.4.9"
 authors = [ "Pierre Talbot <ptalbot@hyc.io>" ]
 
 description = "Generic interval and interval set library."
@@ -18,4 +18,5 @@ path = "src/libinterval/lib.rs"
 
 [dependencies]
 
-num = "^0.1.24"
+num = "^0.1.27"
+bit-set = "^0.2.0"
