@@ -3,8 +3,8 @@ Interval Arithmetic Library
 
 [![ptal on Travis CI][travis-image]][travis]
 
-[travis-image]: https://travis-ci.org/ptal/rust-interval.png
-[travis]: https://travis-ci.org/ptal/rust-interval
+[travis-image]: https://travis-ci.org/ptal/intervallum.png
+[travis]: https://travis-ci.org/ptal/intervallum
 
 Compiled with `rustc 1.8.0-nightly (18b851bc5 2016-01-22)`.
 
