@@ -1,7 +1,7 @@
 [package]
 
 name = "intervallum"
-version = "0.4.10"
+version = "0.4.11"
 authors = [ "Pierre Talbot <ptalbot@hyc.io>" ]
 
 description = "Generic interval and interval set library."
@@ -9,7 +9,7 @@ documentation = "http://hyc.io/intervallum"
 repository = "https://github.com/ptal/rust-interval"
 readme = "README.md"
 keywords = ["interval", "math", "data-structure", "containers", "interval-set"]
-license = "Apache-2.0"
+license = "MIT/Apache-2.0"
 
 [lib]
 
