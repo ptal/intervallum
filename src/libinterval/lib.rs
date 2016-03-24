@@ -29,7 +29,7 @@
 #![crate_name = "interval"]
 #![crate_type = "dylib"]
 
-#![feature(collections, hashmap_hasher, enumset, peekable_is_empty)]
+#![feature(collections, enumset, peekable_is_empty)]
 
 extern crate collections;
 extern crate num;

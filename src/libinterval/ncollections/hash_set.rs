@@ -8,8 +8,7 @@
 
 use std::collections::HashSet as StdHashSet;
 use std::collections::hash_map::RandomState;
-use std::collections::hash_state::HashState;
-use std::hash::Hash;
+use std::hash::{BuildHasher, Hash};
 use std::ops::{Deref, DerefMut};
 
 pub struct HashSet<T, S = RandomState>
@@ -19,7 +18,7 @@ pub struct HashSet<T, S = RandomState>
 
 impl<T, S> HashSet<T, S> where
   T: Eq + Hash,
-  S: HashState
+  S: BuildHasher
 {
   pub fn wrap(hs: StdHashSet<T, S>) -> HashSet<T, S> {
     HashSet{hs: hs}

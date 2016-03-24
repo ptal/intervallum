@@ -11,7 +11,7 @@
 //! For general informations, see the [module documentation](../index.html).
 
 use collections::enum_set::CLike;
-use std::collections::hash_state::HashState;
+use std::hash::BuildHasher;
 use std::hash::Hash;
 use std::iter::FromIterator;
 use std::default::Default;
@@ -76,7 +76,7 @@ macro_rules! set_op_impl
 
     impl<T, S> $t for HashSet<T, S>
     where T: Eq + Hash + Clone,
-          S: HashState + Default
+          S: BuildHasher + Default
     {
       type Output = HashSet<T, S>;
 
@@ -131,7 +131,7 @@ macro_rules! contains_impl {
 
 impl<T, S> Contains<T> for HashSet<T, S>
 where T: Eq + Hash,
-      S: HashState
+      S: BuildHasher
 {
   contains_impl!(T);
 }
