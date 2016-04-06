@@ -12,6 +12,28 @@
 //!
 //! Most of the operations in `gcollections::ops::*` are implemented. Intervals specific operations, proposed in `ops::*`, are also implemented. There is no `union` operation since this interval representation is not precise enough, and so an union could be over-approximated. For example, consider `[1..2] U [5..6]`, the only possible representation is `[1..6]` which is not exact by the definition of union of sets. However, this operation exists and is named `hull`.
 //!
+//! # Examples
+//!
+//! ```rust
+//! extern crate gcollections;
+//! extern crate interval;
+//!
+//! use interval::Interval;
+//! use interval::ops::*;
+//! use gcollections::ops::*;
+//!
+//! # fn main() {
+//! let a = Interval::new(0, 5);
+//! let b = Interval::singleton(10);
+//!
+//! let c = a.hull(&b);
+//! let d = c.difference(&a);
+//!
+//! assert_eq!(c, Interval::new(0,10));
+//! assert_eq!(d, Interval::new(6,10));
+//! # }
+//! ```
+//!
 //! # See also
 //! [interval set](../interval_set/index.html).
 

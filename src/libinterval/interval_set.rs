@@ -10,10 +10,29 @@
 //!
 //! It stores intervals in a set. The main advantage is the exact representation of an interval by allowing "holes". For example `[1..2] U [5..6]` is stored as `{[1..2], [5..6]}`. This structure is more space-efficient than a classic set collection (such as `BTreeSet`) if the data stored are mostly contiguous. Of course, it is less light-weight than [interval](../interval/index.html), but we keep the list of intervals as small as possible by merging overlapping intervals.
 //!
+//! ```rust
+//! extern crate gcollections;
+//! extern crate interval;
+//!
+//! use interval::interval_set::*;
+//! use gcollections::ops::*;
+//!
+//! # fn main() {
+//! let a = vec![(1,2), (6,10)].to_interval_set();
+//! let b = vec![(3,5), (7,7)].to_interval_set();
+//! let a_union_b = vec![(1,5), (6,10)].to_interval_set();
+//! let a_intersect_b = vec![(7,7)].to_interval_set();
+//!
+//! assert_eq!(a.union(&b), a_union_b);
+//! assert_eq!(a.intersection(&b), a_intersect_b);
+//! # }
+//! ```
+//!
 //! # See also
 //! [interval](../interval/index.html)
 
 use interval::Interval;
+use interval::ToInterval;
 use gcollections::*;
 use gcollections::ops::*;
 use ops::*;
@@ -645,6 +664,22 @@ impl<'a, 'b, Bound: Num+Width+Clone> Mul<&'b Bound> for &'a IntervalSet<Bound> {
   }
 }
 
+pub trait ToIntervalSet<Bound> where
+ Bound: Width
+{
+  fn to_interval_set(self) -> IntervalSet<Bound>;
+}
+
+impl<Bound> ToIntervalSet<Bound> for Vec<(Bound, Bound)> where
+ Bound: Width + Num
+{
+  fn to_interval_set(self) -> IntervalSet<Bound> {
+    let mut intervals = IntervalSet::empty();
+    intervals.extend(self.into_iter().map(|i| i.to_interval()));
+    intervals
+  }
+}
+
 impl<Bound: Display+Width+Num> Display for IntervalSet<Bound> where
  <Bound as Width>::Output: Display
 {
@@ -664,7 +699,6 @@ mod tests {
   use gcollections::*;
   use gcollections::ops::*;
   use ops::*;
-  use interval::*;
 
   fn test_inside_outside(is: IntervalSet<i32>, inside: Vec<i32>, outside: Vec<i32>) {
     for i in &inside {
@@ -679,15 +713,7 @@ mod tests {
 
   // precondition: `intervals` must be a valid intern representation of the interval set.
   fn make_interval_set(intervals: Vec<(i32, i32)>) -> IntervalSet<i32> {
-    let intervals: Vec<Interval<i32>> =
-       intervals.into_iter()
-      .map(|i| i.to_interval())
-      .collect();
-    let size = intervals.iter().fold(0, |a, i| a + i.size());
-    IntervalSet {
-      intervals: intervals,
-      size: size
-    }
+    intervals.to_interval_set()
   }
 
   fn test_result(test_id: String, result: &IntervalSet<i32>, expected: &IntervalSet<i32>) {
