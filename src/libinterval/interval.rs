@@ -10,30 +10,13 @@
 //!
 //! Let `D` be an ordered set and `{i,j} ∈ D`. The interval `I` whose bounds are `{i,j}` is defined as `I = {x ∈ D | i <= x <= j}` and is denoted as `[i..j]`. Only interval with bound types implementing `Num` and `Width` is currently available.
 //!
-//! Most of the operations in `ncollections::ops::*` are implemented. Intervals specific operations, proposed in `ops::*`, are also implemented. There is no `union` operation since this interval representation is not precise enough, and so an union could be over-approximated. For example, consider `[1..2] U [5..6]`, the only possible representation is `[1..6]` which is not exact by the definition of union of sets. However, this operation exists and is named `hull`.
-//!
-//! # Examples
-//!
-//! ```rust
-//! use interval::Interval;
-//! use interval::ops::*;
-//! use interval::ncollections::ops::*;
-//!
-//! let a = Interval::new(0, 5);
-//! let b = Interval::singleton(10);
-//!
-//! let c = a.hull(&b);
-//! let d = c.difference(&a);
-//!
-//! assert_eq!(c, Interval::new(0,10));
-//! assert_eq!(d, Interval::new(6,10));
-//! ```
+//! Most of the operations in `gcollections::ops::*` are implemented. Intervals specific operations, proposed in `ops::*`, are also implemented. There is no `union` operation since this interval representation is not precise enough, and so an union could be over-approximated. For example, consider `[1..2] U [5..6]`, the only possible representation is `[1..6]` which is not exact by the definition of union of sets. However, this operation exists and is named `hull`.
 //!
 //! # See also
-//! [interval set](../interval_set/index.html), [general operations on collection](../ncollections/ops/index.html).
+//! [interval set](../interval_set/index.html).
 
-use ncollections::optional::*;
-use ncollections::ops::*;
+use gcollections::*;
+use gcollections::ops::*;
 use ops::*;
 
 use std::ops::{Add, Sub, Mul};
@@ -43,14 +26,17 @@ use num::{Zero, One, Num};
 
 /// Closed interval (endpoints included).
 #[derive(Debug, Copy, Clone)]
-pub struct Interval<Bound> {
+pub struct Interval<Bound>
+{
   lb: Bound,
   ub: Bound
 }
 
 impl<Bound> IntervalKind for Interval<Bound> {}
 
-impl<Bound: Width+Num> Interval<Bound> {
+impl<Bound> Interval<Bound> where
+ Bound: Width + Num
+{
   fn into_optional(self) -> Optional<Bound> {
     if self.is_empty() { Optional::empty() }
     else if self.is_singleton() { Optional::singleton(self.lb) }
@@ -60,9 +46,10 @@ impl<Bound: Width+Num> Interval<Bound> {
   }
 }
 
-impl<Bound: Width+Num> Eq for Interval<Bound> {}
+impl<Bound: Width + Num> Eq for Interval<Bound> {}
 
-impl<Bound: Width+Num> PartialEq<Interval<Bound>> for Interval<Bound>
+impl<Bound> PartialEq<Interval<Bound>> for Interval<Bound> where
+ Bound: Width + Num
 {
   fn eq(&self, other: &Interval<Bound>) -> bool {
     if self.is_empty() && other.is_empty() { true }
@@ -70,7 +57,8 @@ impl<Bound: Width+Num> PartialEq<Interval<Bound>> for Interval<Bound>
   }
 }
 
-impl<Bound: Clone> Interval<Bound>
+impl<Bound> Interval<Bound> where
+ Bound: Clone
 {
   fn low(&self) -> Bound {
     self.lb.clone()
@@ -80,7 +68,8 @@ impl<Bound: Clone> Interval<Bound>
   }
 }
 
-impl<Bound: Width+Num> Interval<Bound>
+impl<Bound> Interval<Bound> where
+ Bound: Width + Num
 {
   fn min_lb(ub: Bound) -> Interval<Bound> {
     Interval::new(<Bound as Width>::min_value(), ub)
@@ -91,7 +80,8 @@ impl<Bound: Width+Num> Interval<Bound>
   }
 }
 
-impl<Bound: Width> Range<Bound> for Interval<Bound>
+impl<Bound> Range<Bound> for Interval<Bound> where
+ Bound: Width
 {
   fn new(lb: Bound, ub: Bound) -> Interval<Bound> {
     debug_assert!(lb >= <Bound as Width>::min_value(),
@@ -102,7 +92,8 @@ impl<Bound: Width> Range<Bound> for Interval<Bound>
   }
 }
 
-impl<Bound: Num+Width+Clone> Bounded for Interval<Bound>
+impl<Bound> Bounded for Interval<Bound> where
+ Bound: Num + Width + Clone
 {
   type Bound = Bound;
 
@@ -117,47 +108,61 @@ impl<Bound: Num+Width+Clone> Bounded for Interval<Bound>
   }
 }
 
-impl <Bound: Width+Clone> Singleton<Bound> for Interval<Bound>
+impl <Bound> Singleton<Bound> for Interval<Bound> where
+ Bound: Width + Clone
 {
   fn singleton(x: Bound) -> Interval<Bound> {
     Interval::new(x.clone(), x)
   }
 }
 
-impl<Bound: Width+Num> Empty for Interval<Bound>
+impl<Bound> Empty for Interval<Bound> where
+ Bound: Width + Num
 {
   fn empty() -> Interval<Bound> {
     Interval::new(Bound::one(), Bound::zero())
   }
 }
 
-impl<Bound: Width+Num> Whole for Interval<Bound>
+impl<Bound> Whole for Interval<Bound> where
+ Bound: Width + Num
 {
   fn whole() -> Interval<Bound> {
     Interval::new(<Bound as Width>::min_value(), <Bound as Width>::max_value())
   }
 }
 
-impl<Bound: Width+Num> Cardinality for Interval<Bound>
+impl<Bound> Cardinality for Interval<Bound> where
+ Bound: Width + Num
 {
   type Size = <Bound as Width>::Output;
+
   fn size(&self) -> <Bound as Width>::Output {
     if self.is_empty() { <<Bound as Width>::Output>::zero() }
     else {
       Bound::width(&self.lb, &self.ub)
     }
   }
+}
 
+impl<Bound> IsSingleton for Interval<Bound> where
+ Bound: Width + Num
+{
   fn is_singleton(&self) -> bool {
     self.lb == self.ub
   }
+}
 
+impl<Bound> IsEmpty for Interval<Bound> where
+ Bound: Width + Num
+{
   fn is_empty(&self) -> bool {
     self.lb > self.ub
   }
 }
 
-impl<Bound: Width+Num> Disjoint for Interval<Bound>
+impl<Bound> Disjoint for Interval<Bound> where
+ Bound: Width + Num
 {
   fn is_disjoint(&self, other: &Interval<Bound>) -> bool {
        self.is_empty() || other.is_empty()
@@ -165,72 +170,111 @@ impl<Bound: Width+Num> Disjoint for Interval<Bound>
   }
 }
 
-impl<Bound: Num+Ord> Disjoint<Bound> for Interval<Bound>
+impl<Bound> Disjoint<Bound> for Interval<Bound> where
+ Bound: Num + Ord
 {
   fn is_disjoint(&self, value: &Bound) -> bool {
     !self.contains(value)
   }
 }
 
-impl<Bound: Num+Ord> Disjoint<Interval<Bound>> for Bound
+macro_rules! primitive_interval_disjoint
 {
-  fn is_disjoint(&self, value: &Interval<Bound>) -> bool {
-    value.is_disjoint(self)
-  }
+  ( $( $source:ty ),* ) =>
+  {$(
+    impl Disjoint<Interval<$source>> for $source
+    {
+      fn is_disjoint(&self, value: &Interval<$source>) -> bool {
+        value.is_disjoint(self)
+      }
+    }
+  )*}
 }
 
-impl<Bound: Num+Ord> Disjoint<Optional<Bound>> for Interval<Bound>
+primitive_interval_disjoint!(i8,u8,i16,u16,i32,u32,i64,u64,isize,usize);
+
+impl<Bound> Disjoint<Optional<Bound>> for Interval<Bound> where
+ Bound: Num + Ord
 {
   fn is_disjoint(&self, value: &Optional<Bound>) -> bool {
     value.as_ref().map_or(true, |x| self.is_disjoint(x))
   }
 }
 
-impl<Bound: Num+Ord> Disjoint<Interval<Bound>> for Optional<Bound>
+macro_rules! optional_interval_disjoint
 {
-  fn is_disjoint(&self, value: &Interval<Bound>) -> bool {
-    value.is_disjoint(self)
-  }
+  ( $( $source:ty ),* ) =>
+  {$(
+    impl Disjoint<Interval<$source>> for Optional<$source>
+    {
+      fn is_disjoint(&self, value: &Interval<$source>) -> bool {
+        value.is_disjoint(self)
+      }
+    }
+  )*}
 }
 
-impl<Bound: Width+Num> Overlap for Interval<Bound>
+optional_interval_disjoint!(i8,u8,i16,u16,i32,u32,i64,u64,isize,usize);
+
+impl<Bound> Overlap for Interval<Bound> where
+ Bound: Width + Num
 {
   fn overlap(&self, other: &Interval<Bound>) -> bool {
     !self.is_disjoint(other)
   }
 }
 
-impl<Bound: Width+Num> Overlap<Bound> for Interval<Bound>
+impl<Bound> Overlap<Bound> for Interval<Bound> where
+ Bound: Width + Num
 {
   fn overlap(&self, other: &Bound) -> bool {
     !self.is_disjoint(other)
   }
 }
 
-impl<Bound: Width+Num> Overlap<Interval<Bound>> for Bound
-{
-  fn overlap(&self, other: &Interval<Bound>) -> bool {
-    !self.is_disjoint(other)
-  }
-}
-
-impl<Bound: Width+Num> Overlap<Optional<Bound>> for Interval<Bound>
+impl<Bound> Overlap<Optional<Bound>> for Interval<Bound> where
+ Bound: Width + Num
 {
   fn overlap(&self, other: &Optional<Bound>) -> bool {
     !self.is_disjoint(other)
   }
 }
 
-impl<Bound: Width+Num> Overlap<Interval<Bound>> for Optional<Bound>
+macro_rules! primitive_interval_overlap
 {
-  fn overlap(&self, other: &Interval<Bound>) -> bool {
-    !self.is_disjoint(other)
-  }
+  ( $( $source:ty ),* ) =>
+  {$(
+    impl Overlap<Interval<$source>> for $source
+    {
+      fn overlap(&self, other: &Interval<$source>) -> bool {
+        !self.is_disjoint(other)
+      }
+    }
+  )*}
 }
 
-impl<Bound: Width+Num> Hull for Interval<Bound>
+primitive_interval_overlap!(i8,u8,i16,u16,i32,u32,i64,u64,isize,usize);
+
+macro_rules! optional_interval_overlap
+{
+  ( $( $source:ty ),* ) =>
+  {$(
+    impl Overlap<Interval<$source>> for Optional<$source>
+    {
+      fn overlap(&self, other: &Interval<$source>) -> bool {
+        !self.is_disjoint(other)
+      }
+    }
+  )*}
+}
+
+optional_interval_overlap!(i8,u8,i16,u16,i32,u32,i64,u64,isize,usize);
+
+impl<Bound> Hull for Interval<Bound> where
+ Bound: Width + Num
 {
   type Output = Interval<Bound>;
+
   fn hull(&self, other: &Interval<Bound>) -> Interval<Bound> {
     if self.is_empty() { other.clone() }
     else if other.is_empty() { self.clone() }
@@ -243,30 +287,43 @@ impl<Bound: Width+Num> Hull for Interval<Bound>
   }
 }
 
-impl<Bound: Width+Num> Hull<Bound> for Interval<Bound>
+impl<Bound> Hull<Bound> for Interval<Bound> where
+ Bound: Width + Num
 {
   type Output = Interval<Bound>;
+
   fn hull(&self, other: &Bound) -> Interval<Bound> {
     self.hull(&Interval::singleton(other.clone()))
   }
 }
 
-impl<Bound: Width+Num> Hull<Interval<Bound>> for Bound
+macro_rules! primitive_interval_hull
 {
-  type Output = Interval<Bound>;
-  fn hull(&self, other: &Interval<Bound>) -> Interval<Bound> {
-    other.hull(self)
-  }
+  ( $( $source:ty ),* ) =>
+  {$(
+    impl Hull<Interval<$source>> for $source
+    {
+      type Output = Interval<$source>;
+
+      fn hull(&self, other: &Interval<$source>) -> Interval<$source> {
+        other.hull(self)
+      }
+    }
+  )*}
 }
 
-impl<Bound: Ord> Contains<Bound> for Interval<Bound>
+primitive_interval_hull!(i8,u8,i16,u16,i32,u32,i64,u64,isize,usize);
+
+impl<Bound> Contains<Bound> for Interval<Bound> where
+ Bound: Ord
 {
   fn contains(&self, value: &Bound) -> bool {
     value >= &self.lb && value <= &self.ub
   }
 }
 
-impl<Bound: Width+Num> Subset for Interval<Bound>
+impl<Bound> Subset for Interval<Bound> where
+ Bound: Width + Num
 {
   fn is_subset(&self, other: &Interval<Bound>) -> bool {
     if self.is_empty() { true }
@@ -276,16 +333,19 @@ impl<Bound: Width+Num> Subset for Interval<Bound>
   }
 }
 
-impl<Bound: Width+Num> ProperSubset for Interval<Bound>
+impl<Bound> ProperSubset for Interval<Bound> where
+ Bound: Width + Num
 {
   fn is_proper_subset(&self, other: &Interval<Bound>) -> bool {
     self.is_subset(other) && self != other
   }
 }
 
-impl<Bound: Width+Num> Intersection for Interval<Bound>
+impl<Bound> Intersection for Interval<Bound> where
+ Bound: Width + Num
 {
   type Output = Interval<Bound>;
+
   fn intersection(&self, other: &Interval<Bound>) -> Interval<Bound> {
     Interval::new(
       max(self.low(), other.low()),
@@ -294,9 +354,11 @@ impl<Bound: Width+Num> Intersection for Interval<Bound>
   }
 }
 
-impl<Bound: Width+Num> Intersection<Bound> for Interval<Bound>
+impl<Bound> Intersection<Bound> for Interval<Bound> where
+ Bound: Width + Num
 {
   type Output = Interval<Bound>;
+
   fn intersection(&self, value: &Bound) -> Interval<Bound> {
     if self.contains(value) {
       Interval::singleton(value.clone())
@@ -307,25 +369,38 @@ impl<Bound: Width+Num> Intersection<Bound> for Interval<Bound>
   }
 }
 
-impl<Bound: Width+Num> Intersection<Optional<Bound>> for Interval<Bound>
+impl<Bound> Intersection<Optional<Bound>> for Interval<Bound> where
+ Bound: Width + Num
 {
   type Output = Interval<Bound>;
+
   fn intersection(&self, value: &Optional<Bound>) -> Interval<Bound> {
     value.as_ref().map_or(Interval::empty(), |x| self.intersection(x))
   }
 }
 
-impl<Bound: Width+Num> Intersection<Interval<Bound>> for Optional<Bound>
+macro_rules! optional_interval_intersection
 {
-  type Output = Optional<Bound>;
-  fn intersection(&self, other: &Interval<Bound>) -> Optional<Bound> {
-    self.as_ref().map_or(Optional::empty(), |x| other.intersection(x).into_optional())
-  }
+  ( $( $source:ty ),* ) =>
+  {$(
+    impl Intersection<Interval<$source>> for Optional<$source>
+    {
+      type Output = Optional<$source>;
+
+      fn intersection(&self, other: &Interval<$source>) -> Optional<$source> {
+        self.as_ref().map_or(Optional::empty(), |x| other.intersection(x).into_optional())
+      }
+    }
+  )*}
 }
 
-impl<Bound: Width+Num> Difference for Interval<Bound>
+optional_interval_intersection!(i8,u8,i16,u16,i32,u32,i64,u64,isize,usize);
+
+impl<Bound> Difference for Interval<Bound> where
+ Bound: Width + Num
 {
   type Output = Interval<Bound>;
+
   // A - B is equivalent to A /\ ~B
   // However the complement operation doesn't make sense here
   // because it'd nearly always ends up to the whole integer interval.
@@ -341,9 +416,11 @@ impl<Bound: Width+Num> Difference for Interval<Bound>
   }
 }
 
-impl<Bound: Num+Clone> Difference<Bound> for Interval<Bound>
+impl<Bound> Difference<Bound> for Interval<Bound> where
+ Bound: Num + Clone
 {
   type Output = Interval<Bound>;
+
   fn difference(&self, value: &Bound) -> Interval<Bound> {
     let mut this = self.clone();
     if value == &this.lb {
@@ -356,26 +433,38 @@ impl<Bound: Num+Clone> Difference<Bound> for Interval<Bound>
   }
 }
 
-impl<Bound: Ord+Num+Clone> Difference<Optional<Bound>> for Interval<Bound>
+impl<Bound> Difference<Optional<Bound>> for Interval<Bound> where
+ Bound: Ord + Num + Clone
 {
   type Output = Interval<Bound>;
+
   fn difference(&self, value: &Optional<Bound>) -> Interval<Bound> {
     value.as_ref().map_or_else(|| self.clone(), |x| self.difference(x))
   }
 }
 
-impl<Bound: Ord+Clone> Difference<Interval<Bound>> for Optional<Bound>
+macro_rules! optional_interval_difference
 {
-  type Output = Optional<Bound>;
-  fn difference(&self, other: &Interval<Bound>) -> Optional<Bound> {
-    self.as_ref().map_or(Optional::empty(), |x|
-      if other.contains(x) { Optional::empty() }
-      else { Optional::singleton(x.clone()) }
-    )
-  }
+  ( $( $source:ty ),* ) =>
+  {$(
+    impl Difference<Interval<$source>> for Optional<$source>
+    {
+      type Output = Optional<$source>;
+
+      fn difference(&self, other: &Interval<$source>) -> Optional<$source> {
+        self.as_ref().map_or(Optional::empty(), |x|
+          if other.contains(x) { Optional::empty() }
+          else { Optional::singleton(x.clone()) }
+        )
+      }
+    }
+  )*}
 }
 
-impl<Bound: Num+Ord+Clone> ShrinkLeft<Bound> for Interval<Bound>
+optional_interval_difference!(i8,u8,i16,u16,i32,u32,i64,u64,isize,usize);
+
+impl<Bound> ShrinkLeft<Bound> for Interval<Bound> where
+ Bound: Num + Ord + Clone
 {
   fn shrink_left(&self, lb: Bound) -> Interval<Bound> {
     let mut this = self.clone();
@@ -386,7 +475,8 @@ impl<Bound: Num+Ord+Clone> ShrinkLeft<Bound> for Interval<Bound>
   }
 }
 
-impl<Bound: Num+Ord+Clone> ShrinkRight<Bound> for Interval<Bound>
+impl<Bound> ShrinkRight<Bound> for Interval<Bound> where
+ Bound: Num + Ord + Clone
 {
   fn shrink_right(&self, ub: Bound) -> Interval<Bound> {
     let mut this = self.clone();
@@ -399,7 +489,9 @@ impl<Bound: Num+Ord+Clone> ShrinkRight<Bound> for Interval<Bound>
 
 forward_all_binop!(impl<Bound: +Num+Width> Add for Interval<Bound>, add);
 
-impl<'a, 'b, Bound: Num+Width> Add<&'b Interval<Bound>> for &'a Interval<Bound> {
+impl<'a, 'b, Bound> Add<&'b Interval<Bound>> for &'a Interval<Bound> where
+ Bound: Num + Width
+{
   type Output = Interval<Bound>;
 
   fn add(self, other: &Interval<Bound>) -> Interval<Bound> {
@@ -413,7 +505,9 @@ impl<'a, 'b, Bound: Num+Width> Add<&'b Interval<Bound>> for &'a Interval<Bound> 
 
 forward_all_binop!(impl<Bound: +Num+Width+Clone> Add for Interval<Bound>, add, Bound);
 
-impl<'a, 'b, Bound: Num+Width+Clone> Add<&'b Bound> for &'a Interval<Bound> {
+impl<'a, 'b, Bound> Add<&'b Bound> for &'a Interval<Bound> where
+ Bound: Num + Width + Clone
+{
   type Output = Interval<Bound>;
 
   fn add(self, other: &Bound) -> Interval<Bound> {
@@ -428,7 +522,9 @@ impl<'a, 'b, Bound: Num+Width+Clone> Add<&'b Bound> for &'a Interval<Bound> {
 
 forward_all_binop!(impl<Bound: +Num+Width> Sub for Interval<Bound>, sub);
 
-impl<'a, 'b, Bound: Num+Width> Sub<&'b Interval<Bound>> for &'a Interval<Bound> {
+impl<'a, 'b, Bound> Sub<&'b Interval<Bound>> for &'a Interval<Bound> where
+ Bound: Num + Width
+{
   type Output = Interval<Bound>;
 
   fn sub(self, other: &Interval<Bound>) -> Interval<Bound> {
@@ -442,7 +538,9 @@ impl<'a, 'b, Bound: Num+Width> Sub<&'b Interval<Bound>> for &'a Interval<Bound> 
 
 forward_all_binop!(impl<Bound: +Num+Width+Clone> Sub for Interval<Bound>, sub, Bound);
 
-impl<'a, 'b, Bound: Num+Width+Clone> Sub<&'b Bound> for &'a Interval<Bound> {
+impl<'a, 'b, Bound> Sub<&'b Bound> for &'a Interval<Bound> where
+ Bound: Num + Width + Clone
+{
   type Output = Interval<Bound>;
 
   fn sub(self, other: &Bound) -> Interval<Bound> {
@@ -502,7 +600,9 @@ fn min_max<Iter, Item>(mut iter: Iter) -> (Item, Item) where
   (min, max)
 }
 
-impl<'a, 'b, Bound: Num+Width> Mul<&'b Interval<Bound>> for &'a Interval<Bound> {
+impl<'a, 'b, Bound> Mul<&'b Interval<Bound>> for &'a Interval<Bound> where
+ Bound: Num + Width
+{
   type Output = Interval<Bound>;
 
   // Caution: Consider `[0,1] * [3,5]`, the result `[0,5]` is an over-approximation.
@@ -522,7 +622,9 @@ impl<'a, 'b, Bound: Num+Width> Mul<&'b Interval<Bound>> for &'a Interval<Bound> 
 
 forward_all_binop!(impl<Bound: +Num+Width+Clone> Mul for Interval<Bound>, mul, Bound);
 
-impl<'a, 'b, Bound: Num+Width+Clone> Mul<&'b Bound> for &'a Interval<Bound> {
+impl<'a, 'b, Bound> Mul<&'b Bound> for &'a Interval<Bound> where
+ Bound: Num + Width + Clone
+{
   type Output = Interval<Bound>;
 
   // Caution: Consider `[0,1] * 3`, the result `[0,3]` is an over-approximation.
@@ -535,7 +637,8 @@ impl<'a, 'b, Bound: Num+Width+Clone> Mul<&'b Bound> for &'a Interval<Bound> {
   }
 }
 
-impl<Bound: Display+Width+Num> Display for Interval<Bound>
+impl<Bound> Display for Interval<Bound> where
+ Bound: Display + Width + Num
 {
   fn fmt(&self, formatter: &mut Formatter) -> Result<(), Error> {
     if self.is_empty() {
@@ -546,28 +649,33 @@ impl<Bound: Display+Width+Num> Display for Interval<Bound>
   }
 }
 
-pub trait ToInterval<Bound> {
+pub trait ToInterval<Bound>
+{
   fn to_interval(self) -> Interval<Bound>;
 }
 
-impl<Bound> ToInterval<Bound> for Interval<Bound> {
+impl<Bound> ToInterval<Bound> for Interval<Bound>
+{
   fn to_interval(self) -> Interval<Bound> { self }
 }
 
-impl<Bound: Width+Num> ToInterval<Bound> for (Bound, Bound) {
+impl<Bound: Width+Num> ToInterval<Bound> for (Bound, Bound)
+{
   fn to_interval(self) -> Interval<Bound> {
     let (a, b) = self;
     Interval::new(a, b)
   }
 }
 
-impl<Bound: Width+Num> ToInterval<Bound> for () {
+impl<Bound: Width+Num> ToInterval<Bound> for ()
+{
   fn to_interval(self) -> Interval<Bound> {
     Interval::empty()
   }
 }
 
-impl<Bound: Width+Num> ToInterval<Bound> for Bound {
+impl<Bound: Width+Num> ToInterval<Bound> for Bound
+{
   fn to_interval(self) -> Interval<Bound> {
     Interval::singleton(self)
   }
@@ -577,8 +685,8 @@ impl<Bound: Width+Num> ToInterval<Bound> for Bound {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use ncollections::optional::*;
-  use ncollections::ops::*;
+  use gcollections::*;
+  use gcollections::ops::*;
   use ops::*;
 
   const empty: Interval<i32> = Interval {lb: 1, ub: 0};

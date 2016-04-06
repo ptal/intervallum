@@ -14,8 +14,8 @@
 //! [interval](../interval/index.html)
 
 use interval::Interval;
-use ncollections::optional::*;
-use ncollections::ops::*;
+use gcollections::*;
+use gcollections::ops::*;
 use ops::*;
 use std::iter::{Peekable, IntoIterator};
 use std::fmt::{Formatter, Display, Error};
@@ -31,8 +31,8 @@ pub struct IntervalSet<Bound: Width> {
 
 impl<Bound: Width> IntervalKind for IntervalSet<Bound> {}
 
-impl<Bound: Width+Num> IntervalSet<Bound> where
-   <Bound as Width>::Output: Clone
+impl<Bound> IntervalSet<Bound> where
+ Bound: Width + Num
 {
   pub fn interval_count(&self) -> usize {
     self.intervals.len()
@@ -150,7 +150,7 @@ impl<Bound: Width+Num> IntervalSet<Bound> where
   }
 
   fn for_all_pairs<F>(&self, other: &IntervalSet<Bound>, f: F) -> IntervalSet<Bound> where
-    F: Fn(&Interval<Bound>, &Interval<Bound>) -> Interval<Bound>
+   F: Fn(&Interval<Bound>, &Interval<Bound>) -> Interval<Bound>
   {
     let mut res = IntervalSet::empty();
     for i in &self.intervals {
@@ -163,7 +163,7 @@ impl<Bound: Width+Num> IntervalSet<Bound> where
 
   // Precondition: `f` must not change the size of the interval.
   fn stable_map<F>(&self, f: F) -> IntervalSet<Bound> where
-    F: Fn(&Interval<Bound>) -> Interval<Bound>
+   F: Fn(&Interval<Bound>) -> Interval<Bound>
   {
     IntervalSet {
       intervals: self.intervals.iter().map(f).collect(),
@@ -172,18 +172,21 @@ impl<Bound: Width+Num> IntervalSet<Bound> where
   }
 
   fn map<F>(&self, f: F) -> IntervalSet<Bound> where
-    F: Fn(&Interval<Bound>) -> Interval<Bound>
+   F: Fn(&Interval<Bound>) -> Interval<Bound>
   {
     self.intervals.iter().fold(IntervalSet::empty(),
       |mut r, i| { r.push(f(i)); r })
   }
 }
 
-fn joinable<Bound: Width+Num>(first: &Interval<Bound>, second: &Interval<Bound>) -> bool {
+fn joinable<Bound>(first: &Interval<Bound>, second: &Interval<Bound>) -> bool where
+ Bound: Width + Num
+{
   first.upper() + Bound::one() >= second.lower()
 }
 
-impl<Bound: Width+Num> Extend<Interval<Bound>> for IntervalSet<Bound>
+impl<Bound> Extend<Interval<Bound>> for IntervalSet<Bound> where
+ Bound: Width + Num
 {
   fn extend<I>(&mut self, iterable: I) where
    I: IntoIterator<Item=Interval<Bound>>
@@ -194,9 +197,10 @@ impl<Bound: Width+Num> Extend<Interval<Bound>> for IntervalSet<Bound>
   }
 }
 
-impl<Bound: Width+Num> Eq for IntervalSet<Bound> {}
+impl<Bound: Width + Num> Eq for IntervalSet<Bound> {}
 
-impl<Bound: Width+Num> PartialEq<IntervalSet<Bound>> for IntervalSet<Bound>
+impl<Bound> PartialEq<IntervalSet<Bound>> for IntervalSet<Bound> where
+ Bound: Width + Num
 {
   fn eq(&self, other: &IntervalSet<Bound>) -> bool {
     if self.size() != other.size() { false }
@@ -206,7 +210,8 @@ impl<Bound: Width+Num> PartialEq<IntervalSet<Bound>> for IntervalSet<Bound>
   }
 }
 
-impl<Bound: Width+Num> Range<Bound> for IntervalSet<Bound>
+impl<Bound> Range<Bound> for IntervalSet<Bound> where
+ Bound: Width + Num
 {
   fn new(lb: Bound, ub: Bound) -> IntervalSet<Bound> {
     debug_assert!(lb <= ub, "Cannot build empty interval set with an invalid range. Use IntervalSet::empty().");
@@ -215,7 +220,8 @@ impl<Bound: Width+Num> Range<Bound> for IntervalSet<Bound>
   }
 }
 
-impl<Bound: Width+Num> Whole for IntervalSet<Bound>
+impl<Bound> Whole for IntervalSet<Bound> where
+ Bound: Width + Num
 {
   fn whole() -> IntervalSet<Bound> {
     let mut res = IntervalSet::empty();
@@ -224,7 +230,8 @@ impl<Bound: Width+Num> Whole for IntervalSet<Bound>
   }
 }
 
-impl<Bound: Width+Num+PartialOrd> Bounded for IntervalSet<Bound>
+impl<Bound> Bounded for IntervalSet<Bound> where
+ Bound: Width + Num + PartialOrd
 {
   type Bound = Bound;
 
@@ -263,11 +270,17 @@ impl<Bound: Width+Num> Cardinality for IntervalSet<Bound>
   fn size(&self) -> <Bound as Width>::Output {
     self.size.clone()
   }
+}
 
+impl<Bound: Width+Num> IsSingleton for IntervalSet<Bound>
+{
   fn is_singleton(&self) -> bool {
     self.size() == <<Bound as Width>::Output>::one()
   }
+}
 
+impl<Bound: Width+Num> IsEmpty for IntervalSet<Bound>
+{
   fn is_empty(&self) -> bool {
     self.size() == <<Bound as Width>::Output>::zero()
   }
@@ -465,17 +478,19 @@ impl<Bound: Width+Num> Overlap<Optional<Bound>> for IntervalSet<Bound> {
   }
 }
 
-impl<Bound: Width+Num> Overlap<IntervalSet<Bound>> for Bound {
-  fn overlap(&self, other: &IntervalSet<Bound>) -> bool {
-    other.overlap(self)
-  }
+macro_rules! primitive_interval_set_overlap
+{
+  ( $( $source:ty ),* ) =>
+  {$(
+    impl Overlap<IntervalSet<$source>> for $source {
+      fn overlap(&self, other: &IntervalSet<$source>) -> bool {
+        other.overlap(self)
+      }
+    }
+  )*}
 }
 
-impl<Bound: Width+Num> Overlap<IntervalSet<Bound>> for Optional<Bound> {
-  fn overlap(&self, other: &IntervalSet<Bound>) -> bool {
-    other.overlap(self)
-  }
-}
+primitive_interval_set_overlap!(i8,u8,i16,u16,i32,u32,i64,u64,isize,usize);
 
 impl<Bound: Width+Num> Disjoint for IntervalSet<Bound> {
   fn is_disjoint(&self, rhs: &IntervalSet<Bound>) -> bool {
@@ -646,8 +661,8 @@ impl<Bound: Display+Width+Num> Display for IntervalSet<Bound> where
 #[cfg(test)]
 mod tests {
   use super::*;
-  use ncollections::optional::*;
-  use ncollections::ops::*;
+  use gcollections::*;
+  use gcollections::ops::*;
   use ops::*;
   use interval::*;
 
@@ -1048,8 +1063,6 @@ mod tests {
     for (id, a, b, expected) in cases {
       test_binary_value_bool_op(format!("test #{} of overlap_option", id),
         a.clone(), b, |x,y| x.overlap(y), expected);
-      test_binary_value_bool_op(format!("test #{} of overlap_option", id),
-        a, b, |x,y| y.overlap(x), expected);
     }
   }
 

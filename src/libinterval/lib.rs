@@ -6,7 +6,7 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-//! This library proposes structures for [interval arithmetic](https://en.wikipedia.org/wiki/Interval_arithmetic), most [set operations](https://en.wikipedia.org/wiki/Set_%28mathematics%29) are implemented. A second part of this library defines a bunch of traits for programming generic operations on collections. This part might be moved into another library if it proves its usefulness. Or it might be removed when proper generic support will land in the standard collection.
+//! This library proposes structures for [interval arithmetic](https://en.wikipedia.org/wiki/Interval_arithmetic), most [set operations](https://en.wikipedia.org/wiki/Set_%28mathematics%29) are implemented.
 //!
 //! # Overflow behavior
 //!
@@ -18,7 +18,7 @@
 //!
 //! # Examples
 //!
-//! For examples see the [interval module](interval/index.html), [interval set module](interval_set/index.html) or the [ncollections module](ncollections/index.html).
+//! For examples see the [interval module](interval/index.html), [interval set module](interval_set/index.html).
 //!
 //! # References
 //! * [Boost Interval Arithmetic Library](http://www.boost.org/doc/libs/1_57_0/libs/numeric/interval/doc/interval.html)
@@ -26,17 +26,12 @@
 //! * T.J. Hickey, Qun Ju, and M.H. van Emden. Interval arithmetic: from principles to implementation. Journal of the ACM, 48(5):1038-1068, 2001.
 //!
 
-#![crate_name = "interval"]
-#![crate_type = "dylib"]
+#![feature(peekable_is_empty, specialization)]
 
-#![feature(collections, enumset, peekable_is_empty)]
-
-extern crate collections;
 extern crate num;
-extern crate bit_set;
-
 #[macro_use]
-pub mod ncollections;
+extern crate gcollections;
+
 pub mod interval;
 pub mod interval_set;
 pub mod ops;
