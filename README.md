@@ -6,11 +6,12 @@ Interval Arithmetic Library
 [travis-image]: https://travis-ci.org/ptal/intervallum.png
 [travis]: https://travis-ci.org/ptal/intervallum
 
-Compiled with `rustc 1.9.0-nightly (21922e1f4 2016-03-21)`.
 
-This library is usable, tested and documented, however it only works on integers (`i8`-`i64`, `u8`-`u64`, `usize` and `isize`) and only a few operations are implemented. For generic purposes, common operations on collections are extracted into traits.
+Compiled on the nightly channel of Rust. Use [rustup](www.rustup.rs) for managing compiler channels. Download the exact same version of the compiler used with `rustup override add nightly-2016-04-05`.
 
-Examples and more in the [documentation](http://hyc.io/intervallum)
+This library is usable, tested and documented, however it only works on integers (`i8`-`i64`, `u8`-`u64`, `usize` and `isize`) and only a few operations are implemented.
+
+Examples and more in the [documentation](http://hyc.io/intervallum).
 
 ## License
 
@@ -21,6 +22,4 @@ at your option.
 
 ### Contribution
 
-Unless you explicitly state otherwise, any contribution intentionally submitted
-for inclusion in the work by you shall be dual licensed as above, without any
-additional terms or conditions.
+Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in the work by you shall be dual licensed as above, without any additional terms or conditions.
