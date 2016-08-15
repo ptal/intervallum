@@ -44,7 +44,7 @@ use ops::*;
 use std::ops::{Add, Sub, Mul};
 use std::cmp::{min, max};
 use std::fmt::{Formatter, Display, Error};
-use num::{Zero, One, Num};
+use num::{Zero, Num};
 
 /// Closed interval (endpoints included).
 #[derive(Debug, Copy, Clone)]

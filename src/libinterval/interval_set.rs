@@ -321,10 +321,11 @@ fn advance_one<I, F, Item>(a : &mut Peekable<I>, b: &mut Peekable<I>, choose: F)
  F: Fn(&Item, &Item) -> bool,
  Item: Bounded
 {
-  debug_assert!(!a.is_empty() && !b.is_empty());
+  static NON_EMPTY_PRECONDITION: &'static str =
+    "`advance_one` expects both interval iterators to be non_empty.";
   let who_advance = {
-    let i = a.peek().unwrap();
-    let j = b.peek().unwrap();
+    let i = a.peek().expect(NON_EMPTY_PRECONDITION);
+    let j = b.peek().expect(NON_EMPTY_PRECONDITION);
     choose(i, j)
   };
   let to_advance = if who_advance { a } else { b };
@@ -350,7 +351,7 @@ fn from_lower_iterator<I, Bound>(a : &mut Peekable<I>, b: &mut Peekable<I>) -> I
  I: Iterator<Item=Interval<Bound>>,
  Bound: Width+Num
 {
-  if a.is_empty() || b.is_empty() {
+  if a.peek().is_none() || b.peek().is_none() {
     IntervalSet::empty()
   } else {
     let first = advance_lower(a, b);
@@ -366,7 +367,7 @@ impl<Bound: Width+Num> Union for IntervalSet<Bound>
     let mut a = &mut self.intervals.iter().cloned().peekable();
     let mut b = &mut rhs.intervals.iter().cloned().peekable();
     let mut res = from_lower_iterator(a, b);
-    while !a.is_empty() && !b.is_empty() {
+    while a.peek().is_some() && b.peek().is_some() {
       let lower = advance_lower(a, b);
       res.join_or_push(lower);
     }
@@ -382,7 +383,7 @@ fn advance_to_first_overlapping<I, Item>(a : &mut Peekable<I>, b: &mut Peekable<
  I: Iterator<Item=Item>,
  Item: Bounded + Overlap
 {
-  while !a.is_empty() && !b.is_empty() {
+  while a.peek().is_some() && b.peek().is_some() {
     let overlapping = {
       let i = a.peek().unwrap();
       let j = b.peek().unwrap();
