@@ -56,6 +56,11 @@ pub struct Interval<Bound>
 
 impl<Bound> IntervalKind for Interval<Bound> {}
 
+impl<Bound> Collection for Interval<Bound>
+{
+  type Item = Bound;
+}
+
 impl<Bound> Interval<Bound> where
  Bound: Width + Num
 {
@@ -117,8 +122,6 @@ impl<Bound> Range<Bound> for Interval<Bound> where
 impl<Bound> Bounded for Interval<Bound> where
  Bound: Num + Width + Clone
 {
-  type Bound = Bound;
-
   fn lower(&self) -> Bound {
     debug_assert!(!self.is_empty(), "Cannot access lower bound on empty interval.");
     self.low()
@@ -130,7 +133,7 @@ impl<Bound> Bounded for Interval<Bound> where
   }
 }
 
-impl <Bound> Singleton<Bound> for Interval<Bound> where
+impl<Bound> Singleton for Interval<Bound> where
  Bound: Width + Clone
 {
   fn singleton(x: Bound) -> Interval<Bound> {
@@ -336,7 +339,7 @@ macro_rules! primitive_interval_hull
 
 primitive_interval_hull!(i8,u8,i16,u16,i32,u32,i64,u64,isize,usize);
 
-impl<Bound> Contains<Bound> for Interval<Bound> where
+impl<Bound> Contains for Interval<Bound> where
  Bound: Ord
 {
   fn contains(&self, value: &Bound) -> bool {
@@ -485,8 +488,8 @@ macro_rules! optional_interval_difference
 
 optional_interval_difference!(i8,u8,i16,u16,i32,u32,i64,u64,isize,usize);
 
-impl<Bound> ShrinkLeft<Bound> for Interval<Bound> where
- Bound: Num + Ord + Clone
+impl<Bound> ShrinkLeft for Interval<Bound> where
+ Bound: Num + Width
 {
   fn shrink_left(&self, lb: Bound) -> Interval<Bound> {
     let mut this = self.clone();
@@ -497,8 +500,8 @@ impl<Bound> ShrinkLeft<Bound> for Interval<Bound> where
   }
 }
 
-impl<Bound> ShrinkRight<Bound> for Interval<Bound> where
- Bound: Num + Ord + Clone
+impl<Bound> ShrinkRight for Interval<Bound> where
+ Bound: Num + Width
 {
   fn shrink_right(&self, ub: Bound) -> Interval<Bound> {
     let mut this = self.clone();

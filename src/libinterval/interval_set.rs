@@ -50,6 +50,11 @@ pub struct IntervalSet<Bound: Width> {
 
 impl<Bound: Width> IntervalKind for IntervalSet<Bound> {}
 
+impl<Bound: Width> Collection for IntervalSet<Bound>
+{
+  type Item = Bound;
+}
+
 impl<Bound> IntervalSet<Bound> where
  Bound: Width + Num
 {
@@ -252,8 +257,6 @@ impl<Bound> Whole for IntervalSet<Bound> where
 impl<Bound> Bounded for IntervalSet<Bound> where
  Bound: Width + Num + PartialOrd
 {
-  type Bound = Bound;
-
   fn lower(&self) -> Bound {
     debug_assert!(!self.is_empty(), "Cannot access lower bound on empty interval.");
     self.front().lower()
@@ -265,7 +268,7 @@ impl<Bound> Bounded for IntervalSet<Bound> where
   }
 }
 
-impl <Bound: Width+Num> Singleton<Bound> for IntervalSet<Bound>
+impl <Bound: Width+Num> Singleton for IntervalSet<Bound>
 {
   fn singleton(x: Bound) -> IntervalSet<Bound> {
     IntervalSet::new(x.clone(), x)
@@ -305,7 +308,7 @@ impl<Bound: Width+Num> IsEmpty for IntervalSet<Bound>
   }
 }
 
-impl<Bound: Width+Num> Contains<Bound> for IntervalSet<Bound>
+impl<Bound: Width+Num> Contains for IntervalSet<Bound>
 {
   fn contains(&self, value: &Bound) -> bool {
     if let Some((left, right)) = self.find_interval(value) {
@@ -332,17 +335,19 @@ fn advance_one<I, F, Item>(a : &mut Peekable<I>, b: &mut Peekable<I>, choose: F)
   to_advance.next().unwrap()
 }
 
-fn advance_lower<I, Item>(a : &mut Peekable<I>, b: &mut Peekable<I>) -> Item where
+fn advance_lower<I, Item, B>(a : &mut Peekable<I>, b: &mut Peekable<I>) -> Item where
  I: Iterator<Item=Item>,
- Item: Bounded
+ Item: Bounded + Collection<Item=B>,
+ B: Ord
 {
   advance_one(a, b, |i,j| i.lower() < j.lower())
 }
 
 // Advance the one with the lower upper bound.
-fn advance_lub<I, Item>(a : &mut Peekable<I>, b: &mut Peekable<I>) -> Item where
+fn advance_lub<I, Item, B>(a : &mut Peekable<I>, b: &mut Peekable<I>) -> Item where
  I: Iterator<Item=Item>,
- Item: Bounded
+ Item: Bounded + Collection<Item=B>,
+ B: Ord
 {
   advance_one(a, b, |i, j| i.upper() < j.upper())
 }
@@ -379,9 +384,10 @@ impl<Bound: Width+Num> Union for IntervalSet<Bound>
 
 // Returns `false` when one of the iterator is consumed.
 // Iterators are not consumed if the intervals are already overlapping.
-fn advance_to_first_overlapping<I, Item>(a : &mut Peekable<I>, b: &mut Peekable<I>) -> bool where
+fn advance_to_first_overlapping<I, Item, B>(a : &mut Peekable<I>, b: &mut Peekable<I>) -> bool where
  I: Iterator<Item=Item>,
- Item: Bounded + Overlap
+ Item: Bounded + Overlap + Collection<Item=B>,
+ B: Ord
 {
   while a.peek().is_some() && b.peek().is_some() {
     let overlapping = {
@@ -518,7 +524,7 @@ impl<Bound: Width+Num> Disjoint for IntervalSet<Bound> {
   }
 }
 
-impl<Bound: Width+Num> ShrinkLeft<Bound> for IntervalSet<Bound> where
+impl<Bound: Width+Num> ShrinkLeft for IntervalSet<Bound> where
   <Bound as Width>::Output: Clone
 {
   fn shrink_left(&self, lb: Bound) -> IntervalSet<Bound> {
@@ -542,7 +548,7 @@ impl<Bound: Width+Num> ShrinkLeft<Bound> for IntervalSet<Bound> where
   }
 }
 
-impl<Bound: Width+Num> ShrinkRight<Bound> for IntervalSet<Bound> where
+impl<Bound: Width+Num> ShrinkRight for IntervalSet<Bound> where
   <Bound as Width>::Output: Clone
 {
   fn shrink_right(&self, ub: Bound) -> IntervalSet<Bound> {
