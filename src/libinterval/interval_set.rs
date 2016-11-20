@@ -234,7 +234,7 @@ impl<Bound> PartialEq<IntervalSet<Bound>> for IntervalSet<Bound> where
   }
 }
 
-impl<Bound> Range<Bound> for IntervalSet<Bound> where
+impl<Bound> Range for IntervalSet<Bound> where
  Bound: Width + Num
 {
   fn new(lb: Bound, ub: Bound) -> IntervalSet<Bound> {

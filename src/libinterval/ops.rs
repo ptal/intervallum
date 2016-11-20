@@ -8,6 +8,7 @@
 
 //! Interval and bound specific operations.
 
+use gcollections::kind::*;
 use num::{Unsigned, Integer};
 use num::Bounded as NumBounded;
 
@@ -17,9 +18,9 @@ pub trait Hull<RHS = Self>
   fn hull(&self, rhs: &RHS) -> Self::Output;
 }
 
-pub trait Range<Bound>
+pub trait Range : Collection
 {
-  fn new(lb: Bound, ub: Bound) -> Self;
+  fn new(lb: Self::Item, ub: Self::Item) -> Self;
 }
 
 pub trait Whole

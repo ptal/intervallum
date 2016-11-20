@@ -107,7 +107,7 @@ impl<Bound> Interval<Bound> where
   }
 }
 
-impl<Bound> Range<Bound> for Interval<Bound> where
+impl<Bound> Range for Interval<Bound> where
  Bound: Width
 {
   fn new(lb: Bound, ub: Bound) -> Interval<Bound> {
