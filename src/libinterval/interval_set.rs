@@ -364,6 +364,16 @@ fn from_lower_iterator<I, Bound>(a : &mut Peekable<I>, b: &mut Peekable<I>) -> I
   }
 }
 
+impl<Bound> Union<Bound> for IntervalSet<Bound> where
+  Bound: Width + Num + Clone
+{
+  type Output = IntervalSet<Bound>;
+
+  fn union(&self, rhs: &Bound) -> IntervalSet<Bound> {
+    self.union(&IntervalSet::singleton(rhs.clone()))
+  }
+}
+
 impl<Bound: Width+Num> Union for IntervalSet<Bound>
 {
   type Output = IntervalSet<Bound>;
@@ -402,6 +412,16 @@ fn advance_to_first_overlapping<I, Item, B>(a : &mut Peekable<I>, b: &mut Peekab
     }
   }
   false
+}
+
+impl<Bound> Intersection<Bound> for IntervalSet<Bound> where
+  Bound: Width + Num + Clone
+{
+  type Output = IntervalSet<Bound>;
+
+  fn intersection(&self, rhs: &Bound) -> IntervalSet<Bound> {
+    self.intersection(&IntervalSet::singleton(rhs.clone()))
+  }
 }
 
 impl<Bound: Width+Num> Intersection for IntervalSet<Bound>
@@ -461,11 +481,31 @@ impl<Bound: Width+Num> Complement for IntervalSet<Bound>
   }
 }
 
+impl<Bound> Difference<Bound> for IntervalSet<Bound> where
+  Bound: Width + Num + Clone
+{
+  type Output = IntervalSet<Bound>;
+
+  fn difference(&self, rhs: &Bound) -> IntervalSet<Bound> {
+    self.difference(&IntervalSet::singleton(rhs.clone()))
+  }
+}
+
 impl<Bound: Width+Num> Difference for IntervalSet<Bound> {
   type Output = IntervalSet<Bound>;
 
   fn difference(&self, rhs: &IntervalSet<Bound>) -> IntervalSet<Bound> {
     self.intersection(&rhs.complement())
+  }
+}
+
+impl<Bound> SymmetricDifference<Bound> for IntervalSet<Bound> where
+  Bound: Width + Num + Clone
+{
+  type Output = IntervalSet<Bound>;
+
+  fn symmetric_difference(&self, rhs: &Bound) -> IntervalSet<Bound> {
+    self.symmetric_difference(&IntervalSet::singleton(rhs.clone()))
   }
 }
 
@@ -703,9 +743,6 @@ impl<Bound: Display+Width+Num> Display for IntervalSet<Bound> where
 #[cfg(test)]
 mod tests {
   use super::*;
-  use gcollections::*;
-  use gcollections::ops::*;
-  use ops::*;
 
   fn test_inside_outside(is: IntervalSet<i32>, inside: Vec<i32>, outside: Vec<i32>) {
     for i in &inside {

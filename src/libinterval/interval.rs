@@ -710,9 +710,6 @@ impl<Bound: Width+Num> ToInterval<Bound> for Bound
 #[cfg(test)]
 mod tests {
   use super::*;
-  use gcollections::*;
-  use gcollections::ops::*;
-  use ops::*;
 
   const empty: Interval<i32> = Interval {lb: 1, ub: 0};
   const invalid: Interval<i32> = Interval {lb: 10, ub: -10};
