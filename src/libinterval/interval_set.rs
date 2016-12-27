@@ -717,6 +717,13 @@ pub trait ToIntervalSet<Bound> where
   fn to_interval_set(self) -> IntervalSet<Bound>;
 }
 
+impl<Bound: Width+Num> ToIntervalSet<Bound> for (Bound, Bound)
+{
+  fn to_interval_set(self) -> IntervalSet<Bound> {
+    vec![self].to_interval_set()
+  }
+}
+
 impl<Bound> ToIntervalSet<Bound> for Vec<(Bound, Bound)> where
  Bound: Width + Num
 {
