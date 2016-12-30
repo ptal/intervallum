@@ -738,11 +738,16 @@ impl<Bound: Display+Width+Num> Display for IntervalSet<Bound> where
  <Bound as Width>::Output: Display
 {
   fn fmt(&self, formatter: &mut Formatter) -> Result<(), Error> {
-    try!(formatter.write_fmt(format_args!("{}{}", self.size(), "#{")));
-    for interval in &self.intervals  {
-      try!(formatter.write_fmt(format_args!("{}", interval)));
+    if self.intervals.len() == 1 {
+      self.intervals[0].fmt(formatter)
     }
-    formatter.write_str("}")
+    else {
+      formatter.write_str("{")?;
+      for interval in &self.intervals  {
+        formatter.write_fmt(format_args!("{}", interval))?;
+      }
+      formatter.write_str("}")
+    }
   }
 }
 
