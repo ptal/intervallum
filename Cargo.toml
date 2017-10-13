@@ -1,11 +1,11 @@
 [package]
 
 name = "intervallum"
-version = "0.6.4"
+version = "0.6.5"
 authors = [ "Pierre Talbot <ptalbot@hyc.io>" ]
 
 description = "Generic interval and interval set library."
-documentation = "http://hyc.io/intervallum"
+documentation = "https://docs.rs/intervallum/0.6.5/interval/"
 repository = "https://github.com/ptal/intervallum"
 readme = "README.md"
 keywords = ["interval", "math", "data-structure", "containers", "interval-set"]
@@ -20,4 +20,4 @@ path = "src/libinterval/lib.rs"
 
 num = "^0.1.29"
 bit-set = "^0.2.0"
-gcollections = "^0.3.3"
+gcollections = "^0.3.5"

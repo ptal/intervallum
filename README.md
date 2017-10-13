@@ -7,11 +7,11 @@ Interval Arithmetic Library
 [travis]: https://travis-ci.org/ptal/intervallum
 
 
-Compiled on the nightly channel of Rust. Use [rustup](www.rustup.rs) for managing compiler channels. Download the exact same version of the compiler used with `rustup override add nightly-2017-04-27`.
+Compiled on the nightly channel of Rust. Use [rustup](www.rustup.rs) for managing compiler channels. Download the exact same version of the compiler used with `rustup override add nightly-2017-08-30`.
 
 This library is usable, tested and documented, however it only works on integers (`i8`-`i64`, `u8`-`u64`, `usize` and `isize`) and only a few operations are implemented.
 
-Examples and more in the [documentation](http://hyc.io/intervallum).
+Examples and more in the [documentation](https://docs.rs/intervallum).
 
 ## License
 

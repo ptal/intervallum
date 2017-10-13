@@ -379,8 +379,8 @@ impl<Bound: Width+Num> Union for IntervalSet<Bound>
   type Output = IntervalSet<Bound>;
 
   fn union(&self, rhs: &IntervalSet<Bound>) -> IntervalSet<Bound> {
-    let mut a = &mut self.intervals.iter().cloned().peekable();
-    let mut b = &mut rhs.intervals.iter().cloned().peekable();
+    let a = &mut self.intervals.iter().cloned().peekable();
+    let b = &mut rhs.intervals.iter().cloned().peekable();
     let mut res = from_lower_iterator(a, b);
     while a.peek().is_some() && b.peek().is_some() {
       let lower = advance_lower(a, b);
@@ -429,8 +429,8 @@ impl<Bound: Width+Num> Intersection for IntervalSet<Bound>
   type Output = IntervalSet<Bound>;
 
   fn intersection(&self, rhs: &IntervalSet<Bound>) -> IntervalSet<Bound> {
-    let mut a = &mut self.intervals.iter().cloned().peekable();
-    let mut b = &mut rhs.intervals.iter().cloned().peekable();
+    let a = &mut self.intervals.iter().cloned().peekable();
+    let b = &mut rhs.intervals.iter().cloned().peekable();
     let mut res = IntervalSet::empty();
     while advance_to_first_overlapping(a, b) {
       {
@@ -521,8 +521,8 @@ impl<Bound: Width+Num> SymmetricDifference for IntervalSet<Bound> {
 
 impl<Bound: Width+Num> Overlap for IntervalSet<Bound> {
   fn overlap(&self, rhs: &IntervalSet<Bound>) -> bool {
-    let mut a = &mut self.intervals.iter().cloned().peekable();
-    let mut b = &mut rhs.intervals.iter().cloned().peekable();
+    let a = &mut self.intervals.iter().cloned().peekable();
+    let b = &mut rhs.intervals.iter().cloned().peekable();
     advance_to_first_overlapping(a, b)
   }
 }
