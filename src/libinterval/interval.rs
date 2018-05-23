@@ -157,32 +157,17 @@ impl<Bound> Whole for Interval<Bound> where
   }
 }
 
+/// `IsSingleton` and `IsEmpty` are defined automatically in `gcollections`.
 impl<Bound> Cardinality for Interval<Bound> where
  Bound: Width + Num
 {
   type Size = <Bound as Width>::Output;
 
   fn size(&self) -> <Bound as Width>::Output {
-    if self.is_empty() { <<Bound as Width>::Output>::zero() }
+    if self.lb > self.ub { <<Bound as Width>::Output>::zero() }
     else {
       Bound::width(&self.lb, &self.ub)
     }
-  }
-}
-
-impl<Bound> IsSingleton for Interval<Bound> where
- Bound: Width + Num
-{
-  fn is_singleton(&self) -> bool {
-    self.lb == self.ub
-  }
-}
-
-impl<Bound> IsEmpty for Interval<Bound> where
- Bound: Width + Num
-{
-  fn is_empty(&self) -> bool {
-    self.lb > self.ub
   }
 }
 

@@ -26,8 +26,6 @@
 //! * T.J. Hickey, Qun Ju, and M.H. van Emden. Interval arithmetic: from principles to implementation. Journal of the ACM, 48(5):1038-1068, 2001.
 //!
 
-#![feature(specialization)]
-
 extern crate num;
 #[macro_use]
 extern crate gcollections;

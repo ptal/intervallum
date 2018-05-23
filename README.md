@@ -6,11 +6,11 @@ Interval Arithmetic Library
 [travis-image]: https://travis-ci.org/ptal/intervallum.png
 [travis]: https://travis-ci.org/ptal/intervallum
 
+Intervallum is a library for computing over arithmetic intervals which compiles on *Rust stable*.
+We provide many set operations such as union and intersection.
+The intervals can be represented with the `Interval` type which is just a pair of integers (such as `(0,10)`, representing a value in the range 0 to 10), and with a `IntervalSet` which is a vector of intervals (such as `[(0,10), (15,20)]` for all values between 0 and 10, and between 15 and 20).
 
-Compiled on the nightly channel of Rust. Use [rustup](www.rustup.rs) for managing compiler channels. Download the exact same version of the compiler used with `rustup override add nightly-2017-08-30`.
-
-This library is usable, tested and documented, however it only works on integers (`i8`-`i64`, `u8`-`u64`, `usize` and `isize`) and only a few operations are implemented.
-
+This library is usable, thoroughly tested and documented, however it only works on integers (`i8`-`i64`, `u8`-`u64`, `usize` and `isize`).
 Examples and more in the [documentation](https://docs.rs/intervallum).
 
 ## License
