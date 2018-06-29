@@ -29,6 +29,7 @@
 extern crate num;
 #[macro_use]
 extern crate gcollections;
+extern crate trilean;
 
 pub mod interval;
 pub mod interval_set;

@@ -33,6 +33,7 @@
 
 use interval::Interval;
 use interval::ToInterval;
+use trilean::SKleene;
 use gcollections::*;
 use gcollections::ops::*;
 use ops::*;
@@ -206,7 +207,8 @@ impl<Bound> IntervalSet<Bound> where
 fn joinable<Bound>(first: &Interval<Bound>, second: &Interval<Bound>) -> bool where
  Bound: Width + Num
 {
-  first.upper() + Bound::one() >= second.lower()
+  if first.upper() == Bound::max_value() { true }
+  else { first.upper() + Bound::one() >= second.lower() }
 }
 
 impl<Bound> Extend<Interval<Bound>> for IntervalSet<Bound> where
@@ -738,6 +740,66 @@ impl<Bound: Display+Width+Num> Display for IntervalSet<Bound> where
   }
 }
 
+impl<Bound> Join for IntervalSet<Bound> where
+ Bound: Width + Num
+{
+  fn join(self, other: IntervalSet<Bound>) -> IntervalSet<Bound> {
+    self.intersection(&other)
+  }
+
+  fn join_in_place(&mut self, other: IntervalSet<Bound>) {
+    let x = self.intersection(&other);
+    self.intervals = x.intervals;
+    self.size = x.size;
+  }
+}
+
+impl<Bound> Meet for IntervalSet<Bound> where
+ Bound: Width + Num
+{
+  fn meet(self, other: IntervalSet<Bound>) -> IntervalSet<Bound> {
+    self.union(&other)
+  }
+
+  fn meet_in_place(&mut self, other: IntervalSet<Bound>) {
+    let x = self.union(&other);
+    self.intervals = x.intervals;
+    self.size = x.size;
+  }
+}
+
+impl<Bound> Entailment for IntervalSet<Bound> where
+ Bound: Width + Num
+{
+  fn entail(&self, other: &IntervalSet<Bound>) -> SKleene {
+    if self.is_subset(other) {
+      SKleene::True
+    }
+    else if other.is_subset(self) {
+      SKleene::False
+    }
+    else {
+      SKleene::Unknown
+    }
+  }
+}
+
+impl<Bound> Top for IntervalSet<Bound> where
+ Bound: Width + Num
+{
+  fn top() -> IntervalSet<Bound> {
+    IntervalSet::empty()
+  }
+}
+
+impl<Bound> Bot for IntervalSet<Bound> where
+ Bound: Width + Num
+{
+  fn bot() -> IntervalSet<Bound> {
+    IntervalSet::whole()
+  }
+}
+
 #[allow(non_upper_case_globals)]
 #[cfg(test)]
 mod tests {
@@ -1255,5 +1317,30 @@ mod tests {
       test_binary_value_op(format!("test #{} of `a*b`", id),
         a.clone(), b.clone(), |x,y| x * y, e_mul);
     }
+  }
+
+  #[test]
+  fn test_lattice() {
+    use gcollections::ops::lattice::test::*;
+    use trilean::SKleene::*;
+    let whole = IntervalSet::<i32>::whole();
+    let empty = IntervalSet::<i32>::empty();
+    let a = vec![(0,5), (10,15)].to_interval_set();
+    let b = vec![(5,10)].to_interval_set();
+    let c = vec![(6,9)].to_interval_set();
+    let d = vec![(4,6), (8,10)].to_interval_set();
+    let e = vec![(5,5), (10,10)].to_interval_set();
+    let f = vec![(6,6), (8,9)].to_interval_set();
+    let g = vec![(0,15)].to_interval_set();
+    let h = vec![(4,10)].to_interval_set();
+    let tester = LatticeTester::new(
+      0,
+      /* data_a */  vec![empty.clone(), empty.clone(), whole.clone(), a.clone(), b.clone(), c.clone()],
+      /* data_b */  vec![whole.clone(), a.clone(),     a.clone(),     b.clone(), c.clone(), d.clone()],
+      /* a |= b*/   vec![True,          True,          False,         Unknown,   False,     Unknown],
+      /* a |_| b */ vec![empty.clone(), empty.clone(), a.clone(),     e.clone(), c.clone(), f.clone()],
+      /* a |-| b */ vec![whole.clone(), a.clone(),     whole.clone(), g.clone(), b.clone(), h.clone()]
+    );
+    tester.test_all();
   }
 }

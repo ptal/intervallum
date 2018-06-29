@@ -39,6 +39,7 @@
 
 use gcollections::*;
 use gcollections::ops::*;
+use trilean::SKleene;
 use ops::*;
 
 use std::ops::{Add, Sub, Mul};
@@ -691,6 +692,66 @@ impl<Bound: Width+Num> ToInterval<Bound> for Bound
   }
 }
 
+impl<Bound> Join for Interval<Bound> where
+ Bound: Width + Num
+{
+  fn join(self, other: Interval<Bound>) -> Interval<Bound> {
+    self.intersection(&other)
+  }
+
+  fn join_in_place(&mut self, other: Interval<Bound>) {
+    let x = self.intersection(&other);
+    self.lb = x.lb;
+    self.ub = x.ub;
+  }
+}
+
+impl<Bound> Meet for Interval<Bound> where
+ Bound: Width + Num
+{
+  fn meet(self, other: Interval<Bound>) -> Interval<Bound> {
+    self.hull(&other)
+  }
+
+  fn meet_in_place(&mut self, other: Interval<Bound>) {
+    let x = self.hull(&other);
+    self.lb = x.lb;
+    self.ub = x.ub;
+  }
+}
+
+impl<Bound> Entailment for Interval<Bound> where
+ Bound: Width + Num
+{
+  fn entail(&self, other: &Interval<Bound>) -> SKleene {
+    if self.is_subset(other) {
+      SKleene::True
+    }
+    else if other.is_subset(self) {
+      SKleene::False
+    }
+    else {
+      SKleene::Unknown
+    }
+  }
+}
+
+impl<Bound> Top for Interval<Bound> where
+ Bound: Width + Num
+{
+  fn top() -> Interval<Bound> {
+    Interval::empty()
+  }
+}
+
+impl<Bound> Bot for Interval<Bound> where
+ Bound: Width + Num
+{
+  fn bot() -> Interval<Bound> {
+    Interval::whole()
+  }
+}
+
 #[allow(non_upper_case_globals)]
 #[cfg(test)]
 mod tests {
@@ -702,6 +763,8 @@ mod tests {
   const one: Interval<i32> = Interval {lb: 1, ub: 1};
   const ten: Interval<i32> = Interval {lb: 10, ub: 10};
 
+  const i0_1: Interval<i32> = Interval {lb: 0, ub: 1};
+  const i0_2: Interval<i32> = Interval {lb: 0, ub: 2};
   const i1_2: Interval<i32> = Interval {lb: 1, ub: 2};
   const i0_10: Interval<i32> = Interval {lb: 0, ub: 10};
   const i1_10: Interval<i32> = Interval {lb: 1, ub: 10};
@@ -1396,5 +1459,21 @@ mod tests {
       assert!(x * y == r, "{:?} * {:?} is not equal to {:?}", x, y, r);
       assert!(y * x == r, "{:?} * {:?} is not equal to {:?}", y, x, r);
     }
+  }
+
+  #[test]
+  fn test_lattice() {
+    use gcollections::ops::lattice::test::*;
+    use trilean::SKleene::*;
+    let whole = Interval::<i32>::whole();
+    let tester = LatticeTester::new(
+      0,
+      /* data_a */  vec![empty, empty, whole, zero, zero,    zero,   i1_2, i0_10,  im5_5],
+      /* data_b */  vec![zero,  whole, empty, zero, one,     i1_2,   i0_10,im5_5,  i6_10],
+      /* a |= b*/   vec![True,  True,  False, True, Unknown, Unknown,True, Unknown,Unknown],
+      /* a |_| b */ vec![empty, empty, empty, zero, empty,   empty,  i1_2, i0_5,   empty],
+      /* a |-| b */ vec![zero,  whole, whole, zero, i0_1,    i0_2,   i0_10,im5_10, im5_10]
+    );
+    tester.test_all();
   }
 }
