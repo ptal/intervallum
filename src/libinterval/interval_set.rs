@@ -746,12 +746,6 @@ impl<Bound> Join for IntervalSet<Bound> where
   fn join(self, other: IntervalSet<Bound>) -> IntervalSet<Bound> {
     self.intersection(&other)
   }
-
-  fn join_in_place(&mut self, other: IntervalSet<Bound>) {
-    let x = self.intersection(&other);
-    self.intervals = x.intervals;
-    self.size = x.size;
-  }
 }
 
 impl<Bound> Meet for IntervalSet<Bound> where
@@ -759,12 +753,6 @@ impl<Bound> Meet for IntervalSet<Bound> where
 {
   fn meet(self, other: IntervalSet<Bound>) -> IntervalSet<Bound> {
     self.union(&other)
-  }
-
-  fn meet_in_place(&mut self, other: IntervalSet<Bound>) {
-    let x = self.union(&other);
-    self.intervals = x.intervals;
-    self.size = x.size;
   }
 }
 
