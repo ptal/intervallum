@@ -56,6 +56,47 @@ impl<Bound: Width> Collection for IntervalSet<Bound>
   type Item = Bound;
 }
 
+impl<Bound: Width> IntoIterator for IntervalSet<Bound>
+{
+  type Item = Interval<Bound>;
+  type IntoIter = ::std::vec::IntoIter<Self::Item>;
+
+  fn into_iter(self) -> Self::IntoIter {
+    self.intervals.into_iter()
+  }
+}
+
+impl<'a, Bound: Width> IntoIterator for &'a IntervalSet<Bound>
+{
+  type Item = &'a Interval<Bound>;
+  type IntoIter = ::std::slice::Iter<'a, Interval<Bound>>;
+
+  fn into_iter(self) -> Self::IntoIter {
+    self.iter()
+  }
+}
+
+impl<'a, Bound: Width> IntoIterator for &'a mut IntervalSet<Bound>
+{
+  type Item = &'a mut Interval<Bound>;
+  type IntoIter = ::std::slice::IterMut<'a, Interval<Bound>>;
+
+  fn into_iter(self) -> Self::IntoIter {
+    self.iter_mut()
+  }
+}
+
+impl<Bound: Width> IntervalSet<Bound>
+{
+  pub fn iter(&self) -> ::std::slice::Iter<Interval<Bound>> {
+    self.intervals.iter()
+  }
+
+  pub fn iter_mut(&mut self) -> ::std::slice::IterMut<Interval<Bound>> {
+    self.intervals.iter_mut()
+  }
+}
+
 impl<Bound> IntervalSet<Bound> where
  Bound: Width + Num
 {
@@ -1330,5 +1371,21 @@ mod tests {
       /* a |-| b */ vec![whole.clone(), a.clone(),     whole.clone(), g.clone(), b.clone(), h.clone()]
     );
     tester.test_all();
+  }
+
+  #[test]
+  fn test_iterator() {
+    let empty = IntervalSet::<i32>::empty();
+    let mut a = vec![(0,5), (10,15)].to_interval_set();
+    let mut iter = a.clone().into_iter();
+    assert_eq!(iter.next(), Some(Interval::new(0,5)), "test 1 of test_iterator");
+    assert_eq!(iter.next(), Some(Interval::new(10,15)), "test 2 of test_iterator");
+    assert_eq!(iter.next(), None, "test 3 of test_iterator");
+    for _x in a.clone() {}
+    for _x in &a {}
+    for _x in &mut a {}
+    for _x in empty {
+      assert!(false, "test 4 of test_iterator: empty interval must not yield an element.");
+    }
   }
 }
