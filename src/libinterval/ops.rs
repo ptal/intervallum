@@ -9,8 +9,9 @@
 //! Interval and bound specific operations.
 
 use gcollections::kind::*;
-use num::{Unsigned, Integer};
-use num::Bounded as NumBounded;
+use num_integer::Integer;
+use num_traits::{Unsigned};
+use num_traits::Bounded as NumBounded;
 
 pub trait Hull<RHS = Self>
 {

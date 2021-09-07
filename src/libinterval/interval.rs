@@ -45,7 +45,7 @@ use crate::ops::*;
 use std::ops::{Add, Sub, Mul};
 use std::cmp::{min, max};
 use std::fmt::{Formatter, Display, Error};
-use num::{Zero, Num};
+use num_traits::{Zero, Num};
 
 /// Closed interval (endpoints included).
 #[derive(Debug, Copy, Clone)]

@@ -41,7 +41,7 @@ use std::iter::{Peekable, IntoIterator};
 use std::fmt::{Formatter, Display, Error};
 use std::ops::{Add, Sub, Mul};
 
-use num::{Zero, Num};
+use num_traits::{Zero, Num};
 
 #[derive(Debug, Clone)]
 pub struct IntervalSet<Bound: Width> {
