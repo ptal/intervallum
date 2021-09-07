@@ -110,7 +110,7 @@ signed_width_impl!(i8,u8,i16,u16,i32,u32,i64,u64,isize,usize);
 mod tests {
   use super::*;
   use gcollections::ops::*;
-  use interval::*;
+  use crate::interval::*;
 
   #[test]
   fn strict_shrink_left() {

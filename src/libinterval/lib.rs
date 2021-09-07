@@ -26,14 +26,9 @@
 //! * T.J. Hickey, Qun Ju, and M.H. van Emden. Interval arithmetic: from principles to implementation. Journal of the ACM, 48(5):1038-1068, 2001.
 //!
 
-extern crate num;
-#[macro_use]
-extern crate gcollections;
-extern crate trilean;
-
 pub mod interval;
 pub mod interval_set;
 pub mod ops;
 
-pub use interval::Interval;
-pub use interval_set::IntervalSet;
+pub use crate::interval::Interval;
+pub use crate::interval_set::IntervalSet;

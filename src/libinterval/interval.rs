@@ -18,8 +18,8 @@
 //! extern crate gcollections;
 //! extern crate interval;
 //!
-//! use interval::Interval;
-//! use interval::ops::*;
+//! use crate::interval::Interval;
+//! use crate::interval::ops::*;
 //! use gcollections::ops::*;
 //!
 //! # fn main() {
@@ -40,7 +40,7 @@
 use gcollections::*;
 use gcollections::ops::*;
 use trilean::SKleene;
-use ops::*;
+use crate::ops::*;
 
 use std::ops::{Add, Sub, Mul};
 use std::cmp::{min, max};
