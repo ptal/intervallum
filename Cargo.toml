@@ -22,5 +22,6 @@ path = "src/libinterval/lib.rs"
 num-integer = "0.1.44"
 num-traits = "0.2.14"
 bit-set = "0.5.0"
-gcollections = "1.4.0"
+gcollections = { git = "https://github.com/maackle/gcollections" }
+# gcollections = "1.4.0"
 trilean = "1.1.0"
