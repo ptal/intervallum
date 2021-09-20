@@ -1,10 +1,7 @@
 Interval Arithmetic Library
 ===========================
 
-[![ptal on Travis CI][travis-image]][travis]
-
-[travis-image]: https://travis-ci.org/ptal/intervallum.png
-[travis]: https://travis-ci.org/ptal/intervallum
+[![Build Status](https://app.travis-ci.com/ptal/intervallum.svg?branch=master)](https://app.travis-ci.com/ptal/intervallum)
 
 Intervallum is a library for computing over arithmetic intervals which compiles on *Rust stable*.
 We provide many set operations such as union and intersection.
