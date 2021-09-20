@@ -9,8 +9,9 @@
 //! Interval and bound specific operations.
 
 use gcollections::kind::*;
-use num::{Unsigned, Integer};
-use num::Bounded as NumBounded;
+use num_integer::Integer;
+use num_traits::{Unsigned};
+use num_traits::Bounded as NumBounded;
 
 pub trait Hull<RHS = Self>
 {
@@ -110,7 +111,7 @@ signed_width_impl!(i8,u8,i16,u16,i32,u32,i64,u64,isize,usize);
 mod tests {
   use super::*;
   use gcollections::ops::*;
-  use interval::*;
+  use crate::interval::*;
 
   #[test]
   fn strict_shrink_left() {

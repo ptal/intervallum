@@ -14,7 +14,7 @@
 //! extern crate gcollections;
 //! extern crate interval;
 //!
-//! use interval::interval_set::*;
+//! use crate::interval::interval_set::*;
 //! use gcollections::ops::*;
 //!
 //! # fn main() {
@@ -31,17 +31,17 @@
 //! # See also
 //! [interval](../interval/index.html)
 
-use interval::Interval;
-use interval::ToInterval;
+use crate::interval::Interval;
+use crate::interval::ToInterval;
+use crate::ops::*;
 use trilean::SKleene;
 use gcollections::*;
 use gcollections::ops::*;
-use ops::*;
 use std::iter::{Peekable, IntoIterator};
 use std::fmt::{Formatter, Display, Error};
 use std::ops::{Add, Sub, Mul};
 
-use num::{Zero, Num};
+use num_traits::{Zero, Num};
 
 #[derive(Debug, Clone)]
 pub struct IntervalSet<Bound: Width> {
@@ -281,7 +281,7 @@ impl<Bound> Range for IntervalSet<Bound> where
  Bound: Width + Num
 {
   fn new(lb: Bound, ub: Bound) -> IntervalSet<Bound> {
-    debug_assert!(lb <= ub, "Cannot build empty interval set with an invalid range. Use IntervalSet::empty().");
+    debug_assert!(lb <= ub, "Cannot build empty interval set with an invalid range. use crate::intervalSet::empty().");
     let i = Interval::new(lb, ub);
     IntervalSet::from_interval(i)
   }
@@ -837,11 +837,11 @@ mod tests {
   fn test_inside_outside(is: IntervalSet<i32>, inside: Vec<i32>, outside: Vec<i32>) {
     for i in &inside {
       assert!(is.contains(i),
-        format!("{} is not contained inside {}, but it should.", i, is));
+        "{} is not contained inside {}, but it should.", i, is);
     }
     for i in &outside {
       assert!(!is.contains(i),
-        format!("{} is contained inside {}, but it should not.", i, is));
+        "{} is contained inside {}, but it should not.", i, is);
     }
   }
 
@@ -852,7 +852,7 @@ mod tests {
 
   fn test_result(test_id: String, result: &IntervalSet<i32>, expected: &IntervalSet<i32>) {
     assert!(result.intervals == expected.intervals,
-      format!("{} | {} is different from the expected value: {}.", test_id, result, expected));
+      "{} | {} is different from the expected value: {}.", test_id, result, expected);
   }
 
   fn test_binary_op_sym<F>(test_id: String, a: Vec<(i32,i32)>, b: Vec<(i32,i32)>, op: F, expected: Vec<(i32,i32)>) where
