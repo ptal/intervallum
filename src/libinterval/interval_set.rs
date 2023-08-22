@@ -351,7 +351,7 @@ fn advance_one<I, F, Item>(a : &mut Peekable<I>, b: &mut Peekable<I>, choose: F)
  F: Fn(&Item, &Item) -> bool,
  Item: Bounded
 {
-  static NON_EMPTY_PRECONDITION: &'static str =
+  static NON_EMPTY_PRECONDITION: &str =
     "`advance_one` expects both interval iterators to be non_empty.";
   let who_advance = {
     let i = a.peek().expect(NON_EMPTY_PRECONDITION);
