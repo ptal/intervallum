@@ -9,7 +9,7 @@ documentation = "https://docs.rs/intervallum/1.4.0/interval/"
 repository = "https://github.com/ptal/intervallum"
 readme = "README.md"
 keywords = ["interval", "math", "data-structure", "containers", "interval-set"]
-license = "MIT/Apache-2.0"
+license = "MIT OR Apache-2.0"
 edition = "2018"
 
 [lib]
