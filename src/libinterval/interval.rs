@@ -15,9 +15,6 @@
 //! # Examples
 //!
 //! ```rust
-//! extern crate gcollections;
-//! extern crate interval;
-//!
 //! use crate::interval::Interval;
 //! use crate::interval::ops::*;
 //! use gcollections::ops::*;

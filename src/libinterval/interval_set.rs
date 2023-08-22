@@ -11,9 +11,6 @@
 //! It stores intervals in a set. The main advantage is the exact representation of an interval by allowing "holes". For example `[1..2] U [5..6]` is stored as `{[1..2], [5..6]}`. This structure is more space-efficient than a classic set collection (such as `BTreeSet`) if the data stored are mostly contiguous. Of course, it is less light-weight than [interval](../interval/index.html), but we keep the list of intervals as small as possible by merging overlapping intervals.
 //!
 //! ```rust
-//! extern crate gcollections;
-//! extern crate interval;
-//!
 //! use crate::interval::interval_set::*;
 //! use gcollections::ops::*;
 //!
