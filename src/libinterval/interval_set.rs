@@ -430,7 +430,7 @@ fn advance_to_first_overlapping<I, Item, B>(a : &mut Peekable<I>, b: &mut Peekab
     let overlapping = {
       let i = a.peek().unwrap();
       let j = b.peek().unwrap();
-      i.overlap(&j)
+      i.overlap(j)
     };
     if overlapping {
       return true
