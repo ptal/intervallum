@@ -639,8 +639,7 @@ impl<Bound: Width+Num> Subset for IntervalSet<Bound>
 {
   fn is_subset(&self, other: &IntervalSet<Bound>) -> bool {
     if self.is_empty() { true }
-    else if self.size() > other.size() { false }
-    else if !self.span().is_subset(&other.span()) { false }
+    else if self.size() > other.size() || !self.span().is_subset(&other.span()) { false }
     else {
       let mut left = 0;
       let right = other.intervals.len() - 1;
