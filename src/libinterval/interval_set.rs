@@ -605,12 +605,10 @@ impl<Bound: Width+Num> ShrinkLeft for IntervalSet<Bound> where
       }
       res
     }
-    else {
-      if self.is_empty() || lb > self.back().upper() {
-        IntervalSet::empty()
-      } else {
-        self.clone()
-      }
+    else if self.is_empty() || lb > self.back().upper() {
+      IntervalSet::empty()
+    } else {
+      self.clone()
     }
   }
 }
@@ -629,12 +627,10 @@ impl<Bound: Width+Num> ShrinkRight for IntervalSet<Bound> where
       }
       res
     }
-    else {
-      if self.is_empty() || ub < self.front().lower() {
-        IntervalSet::empty()
-      } else {
-        self.clone()
-      }
+    else if self.is_empty() || ub < self.front().lower() {
+      IntervalSet::empty()
+    } else {
+      self.clone()
     }
   }
 }
