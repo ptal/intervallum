@@ -105,7 +105,7 @@ impl<Bound> IntervalSet<Bound> where
     let size = i.size().clone();
     IntervalSet {
       intervals: vec![i],
-      size: size
+      size
     }
   }
 
