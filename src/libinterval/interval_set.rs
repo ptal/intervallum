@@ -109,7 +109,7 @@ impl<Bound> IntervalSet<Bound> where
     }
   }
 
-  fn front<'a>(&'a self) -> &'a Interval<Bound> {
+  fn front(&self) -> &Interval<Bound> {
     debug_assert!(!self.is_empty(), "Cannot access the first interval of an empty set.");
     &self.intervals[0]
   }
@@ -118,7 +118,7 @@ impl<Bound> IntervalSet<Bound> where
     self.intervals.len() - 1
   }
 
-  fn back<'a>(&'a self) -> &'a Interval<Bound> {
+  fn back(&self) -> &Interval<Bound> {
     debug_assert!(!self.is_empty(), "Cannot access the last interval of an empty set.");
     &self.intervals[self.back_idx()]
   }
