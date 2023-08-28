@@ -11,9 +11,6 @@
 //! It stores intervals in a set. The main advantage is the exact representation of an interval by allowing "holes". For example `[1..2] U [5..6]` is stored as `{[1..2], [5..6]}`. This structure is more space-efficient than a classic set collection (such as `BTreeSet`) if the data stored are mostly contiguous. Of course, it is less light-weight than [interval](../interval/index.html), but we keep the list of intervals as small as possible by merging overlapping intervals.
 //!
 //! ```rust
-//! extern crate gcollections;
-//! extern crate interval;
-//!
 //! use crate::interval::interval_set::*;
 //! use gcollections::ops::*;
 //!
@@ -108,11 +105,11 @@ impl<Bound> IntervalSet<Bound> where
     let size = i.size().clone();
     IntervalSet {
       intervals: vec![i],
-      size: size
+      size
     }
   }
 
-  fn front<'a>(&'a self) -> &'a Interval<Bound> {
+  fn front(&self) -> &Interval<Bound> {
     debug_assert!(!self.is_empty(), "Cannot access the first interval of an empty set.");
     &self.intervals[0]
   }
@@ -121,7 +118,7 @@ impl<Bound> IntervalSet<Bound> where
     self.intervals.len() - 1
   }
 
-  fn back<'a>(&'a self) -> &'a Interval<Bound> {
+  fn back(&self) -> &Interval<Bound> {
     debug_assert!(!self.is_empty(), "Cannot access the last interval of an empty set.");
     &self.intervals[self.back_idx()]
   }
@@ -354,7 +351,7 @@ fn advance_one<I, F, Item>(a : &mut Peekable<I>, b: &mut Peekable<I>, choose: F)
  F: Fn(&Item, &Item) -> bool,
  Item: Bounded
 {
-  static NON_EMPTY_PRECONDITION: &'static str =
+  static NON_EMPTY_PRECONDITION: &str =
     "`advance_one` expects both interval iterators to be non_empty.";
   let who_advance = {
     let i = a.peek().expect(NON_EMPTY_PRECONDITION);
@@ -433,7 +430,7 @@ fn advance_to_first_overlapping<I, Item, B>(a : &mut Peekable<I>, b: &mut Peekab
     let overlapping = {
       let i = a.peek().unwrap();
       let j = b.peek().unwrap();
-      i.overlap(&j)
+      i.overlap(j)
     };
     if overlapping {
       return true
@@ -608,12 +605,10 @@ impl<Bound: Width+Num> ShrinkLeft for IntervalSet<Bound> where
       }
       res
     }
-    else {
-      if self.is_empty() || lb > self.back().upper() {
-        IntervalSet::empty()
-      } else {
-        self.clone()
-      }
+    else if self.is_empty() || lb > self.back().upper() {
+      IntervalSet::empty()
+    } else {
+      self.clone()
     }
   }
 }
@@ -632,12 +627,10 @@ impl<Bound: Width+Num> ShrinkRight for IntervalSet<Bound> where
       }
       res
     }
-    else {
-      if self.is_empty() || ub < self.front().lower() {
-        IntervalSet::empty()
-      } else {
-        self.clone()
-      }
+    else if self.is_empty() || ub < self.front().lower() {
+      IntervalSet::empty()
+    } else {
+      self.clone()
     }
   }
 }
@@ -646,8 +639,7 @@ impl<Bound: Width+Num> Subset for IntervalSet<Bound>
 {
   fn is_subset(&self, other: &IntervalSet<Bound>) -> bool {
     if self.is_empty() { true }
-    else if self.size() > other.size() { false }
-    else if !self.span().is_subset(&other.span()) { false }
+    else if self.size() > other.size() || !self.span().is_subset(&other.span()) { false }
     else {
       let mut left = 0;
       let right = other.intervals.len() - 1;

@@ -15,9 +15,6 @@
 //! # Examples
 //!
 //! ```rust
-//! extern crate gcollections;
-//! extern crate interval;
-//!
 //! use crate::interval::Interval;
 //! use crate::interval::ops::*;
 //! use gcollections::ops::*;
@@ -116,7 +113,7 @@ impl<Bound> Range for Interval<Bound> where
       "Lower bound exceeds the minimum value of a bound.");
     debug_assert!(ub <= <Bound as Width>::max_value(),
       "Upper bound exceeds the maximum value of a bound.");
-    Interval { lb: lb, ub: ub }
+    Interval { lb, ub }
   }
 }
 
