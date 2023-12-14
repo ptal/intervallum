@@ -177,6 +177,18 @@ impl<Bound> IntervalSet<Bound> where
     }
   }
 
+  /// Expects the given iterable to be in-order - as we are iterating through
+  /// it, each [`Interval<Bound>`] should belong on the upper end of the
+  /// [`IntervalSet`]. Otherwise this method will panic.
+  fn extend_at_back<I>(&mut self, iterable: I) where
+   I: IntoIterator<Item=Interval<Bound>>,
+   Bound: PartialOrd
+  {
+    for interval in iterable {
+      self.join_or_push(interval);
+    }
+  }
+
   fn find_interval_between(&self, value: &Bound,
     mut left: usize, mut right: usize) -> (usize, usize)
   {
@@ -255,9 +267,11 @@ impl<Bound> Extend<Interval<Bound>> for IntervalSet<Bound> where
   fn extend<I>(&mut self, iterable: I) where
    I: IntoIterator<Item=Interval<Bound>>
   {
-    for interval in iterable {
-      self.join_or_push(interval);
-    }
+    let mut intervals: Vec<_> = iterable.into_iter().map(|i| i.to_interval()).collect();
+    intervals.sort_unstable_by_key(|i| i.lower());
+    let mut set = IntervalSet::empty();
+    set.extend_at_back(intervals);
+    *self = self.union(&set);
   }
 }
 
@@ -413,8 +427,8 @@ impl<Bound: Width+Num> Union for IntervalSet<Bound>
       let lower = advance_lower(a, b);
       res.join_or_push(lower);
     }
-    res.extend(a);
-    res.extend(b);
+    res.extend_at_back(a);
+    res.extend_at_back(b);
     res
   }
 }
@@ -751,7 +765,9 @@ impl<Bound> ToIntervalSet<Bound> for Vec<(Bound, Bound)> where
 {
   fn to_interval_set(self) -> IntervalSet<Bound> {
     let mut intervals = IntervalSet::empty();
-    intervals.extend(self.into_iter().map(|i| i.to_interval()));
+    let mut to_add: Vec<_> = self.into_iter().map(|i| i.to_interval()).collect();
+    to_add.sort_unstable_by_key(|i| i.lower());
+    intervals.extend_at_back(to_add);
     intervals
   }
 }
@@ -1051,10 +1067,10 @@ mod tests {
   #[test]
   #[should_panic(expected = "This operation is only for pushing interval to the back of the array, possibly overlapping with the last element.")]
   fn test_extend_back() {
-    // Call extend with unordered input should not panic.
+    // Calling extend_at_back with unordered input should panic.
     let mut set = IntervalSet::empty();
     let intervals = extend_example.map(|i| i.to_interval());
-    set.extend(intervals);
+    set.extend_at_back(intervals);
     assert_eq!(set.interval_count(), 2);
   }
 
