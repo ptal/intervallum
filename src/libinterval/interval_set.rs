@@ -826,6 +826,11 @@ impl<Bound> Bot for IntervalSet<Bound> where
 mod tests {
   use super::*;
 
+  const extend_example: [(i32, i32); 2] = [
+    (11, 33),
+    (-55, -44),
+  ];
+
   fn test_inside_outside(is: IntervalSet<i32>, inside: Vec<i32>, outside: Vec<i32>) {
     for i in &inside {
       assert!(is.contains(i),
@@ -1032,6 +1037,49 @@ mod tests {
     for (id, a, b, expected) in sym_cases {
       test_binary_op_sym(format!("test #{} of intersection", id), a, b, |x,y| x.intersection(y), expected);
     }
+  }
+
+  #[test]
+  fn test_to_interval_set() {
+    // This example should not panic, and should yield the correct result.
+    let intervals = vec![(3, 8), (2, 5)].to_interval_set();
+    assert_eq!(intervals.interval_count(), 1);
+    assert_eq!(intervals.lower(), 2);
+    assert_eq!(intervals.upper(), 8);
+  }
+
+  #[test]
+  #[should_panic(expected = "This operation is only for pushing interval to the back of the array, possibly overlapping with the last element.")]
+  fn test_extend_back() {
+    // Call extend with unordered input should not panic.
+    let mut set = IntervalSet::empty();
+    let intervals = extend_example.map(|i| i.to_interval());
+    set.extend(intervals);
+    assert_eq!(set.interval_count(), 2);
+  }
+
+  #[test]
+  fn test_extend_empty() {
+    // Calling extend with unordered input should not panic.
+    let mut set = IntervalSet::empty();
+    let intervals = extend_example.map(|i| i.to_interval());
+    set.extend(intervals);
+    assert_eq!(set.interval_count(), 2);
+  }
+
+  #[test]
+  fn test_extend_non_empty() {
+    // Extending an IntervalSet with intervals that belong at the start or
+    // the middle of the set should not panic.
+    let mut intervals = vec![(10, 15), (20, 30)].to_interval_set();
+    let at_start = vec![(0, 5).to_interval()];
+    intervals.extend(at_start);
+    let in_middle = vec![(17, 18).to_interval()];
+    intervals.extend(in_middle);
+
+    assert_eq!(intervals.interval_count(), 4);
+    assert_eq!(intervals.lower(), 0);
+    assert_eq!(intervals.upper(), 30);
   }
 
   #[test]
