@@ -177,6 +177,18 @@ impl<Bound> IntervalSet<Bound> where
     }
   }
 
+  /// Expects the given iterable to be in-order - as we are iterating through
+  /// it, each [`Interval<Bound>`] should belong on the upper end of the
+  /// [`IntervalSet`]. Otherwise this method will panic.
+  fn extend_at_back<I>(&mut self, iterable: I) where
+   I: IntoIterator<Item=Interval<Bound>>,
+   Bound: PartialOrd
+  {
+    for interval in iterable {
+      self.join_or_push(interval);
+    }
+  }
+
   fn find_interval_between(&self, value: &Bound,
     mut left: usize, mut right: usize) -> (usize, usize)
   {
@@ -255,9 +267,11 @@ impl<Bound> Extend<Interval<Bound>> for IntervalSet<Bound> where
   fn extend<I>(&mut self, iterable: I) where
    I: IntoIterator<Item=Interval<Bound>>
   {
-    for interval in iterable {
-      self.join_or_push(interval);
-    }
+    let mut intervals: Vec<_> = iterable.into_iter().map(|i| i.to_interval()).collect();
+    intervals.sort_unstable_by_key(|i| i.lower());
+    let mut set = IntervalSet::empty();
+    set.extend_at_back(intervals);
+    *self = self.union(&set);
   }
 }
 
@@ -413,8 +427,8 @@ impl<Bound: Width+Num> Union for IntervalSet<Bound>
       let lower = advance_lower(a, b);
       res.join_or_push(lower);
     }
-    res.extend(a);
-    res.extend(b);
+    res.extend_at_back(a);
+    res.extend_at_back(b);
     res
   }
 }
@@ -751,7 +765,9 @@ impl<Bound> ToIntervalSet<Bound> for Vec<(Bound, Bound)> where
 {
   fn to_interval_set(self) -> IntervalSet<Bound> {
     let mut intervals = IntervalSet::empty();
-    intervals.extend(self.into_iter().map(|i| i.to_interval()));
+    let mut to_add: Vec<_> = self.into_iter().map(|i| i.to_interval()).collect();
+    to_add.sort_unstable_by_key(|i| i.lower());
+    intervals.extend_at_back(to_add);
     intervals
   }
 }
@@ -825,6 +841,11 @@ impl<Bound> Bot for IntervalSet<Bound> where
 #[cfg(test)]
 mod tests {
   use super::*;
+
+  const extend_example: [(i32, i32); 2] = [
+    (11, 33),
+    (-55, -44),
+  ];
 
   fn test_inside_outside(is: IntervalSet<i32>, inside: Vec<i32>, outside: Vec<i32>) {
     for i in &inside {
@@ -1032,6 +1053,49 @@ mod tests {
     for (id, a, b, expected) in sym_cases {
       test_binary_op_sym(format!("test #{} of intersection", id), a, b, |x,y| x.intersection(y), expected);
     }
+  }
+
+  #[test]
+  fn test_to_interval_set() {
+    // This example should not panic, and should yield the correct result.
+    let intervals = vec![(3, 8), (2, 5)].to_interval_set();
+    assert_eq!(intervals.interval_count(), 1);
+    assert_eq!(intervals.lower(), 2);
+    assert_eq!(intervals.upper(), 8);
+  }
+
+  #[test]
+  #[should_panic(expected = "This operation is only for pushing interval to the back of the array, possibly overlapping with the last element.")]
+  fn test_extend_back() {
+    // Calling extend_at_back with unordered input should panic.
+    let mut set = IntervalSet::empty();
+    let intervals = extend_example.map(|i| i.to_interval());
+    set.extend_at_back(intervals);
+    assert_eq!(set.interval_count(), 2);
+  }
+
+  #[test]
+  fn test_extend_empty() {
+    // Calling extend with unordered input should not panic.
+    let mut set = IntervalSet::empty();
+    let intervals = extend_example.map(|i| i.to_interval());
+    set.extend(intervals);
+    assert_eq!(set.interval_count(), 2);
+  }
+
+  #[test]
+  fn test_extend_non_empty() {
+    // Extending an IntervalSet with intervals that belong at the start or
+    // the middle of the set should not panic.
+    let mut intervals = vec![(10, 15), (20, 30)].to_interval_set();
+    let at_start = vec![(0, 5).to_interval()];
+    intervals.extend(at_start);
+    let in_middle = vec![(17, 18).to_interval()];
+    intervals.extend(in_middle);
+
+    assert_eq!(intervals.interval_count(), 4);
+    assert_eq!(intervals.lower(), 0);
+    assert_eq!(intervals.upper(), 30);
   }
 
   #[test]
