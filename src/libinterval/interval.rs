@@ -78,6 +78,20 @@ impl<Bound> PartialEq<Interval<Bound>> for Interval<Bound>
 where
     Bound: Width + Num,
 {
+    /// Checks whether two intervals are equal.
+    /// The bounds must be the same.
+    /// ```
+    /// # use interval::prelude::*;
+    /// assert_eq!(Interval::new(8, 24), Interval::new(8, 24));
+    /// assert_ne!(Interval::new(6, 9), Interval::new(6, 10));
+    /// ```
+    /// Any pair of empty intervals are equal to each other but no other interval.
+    /// ```
+    /// # use interval::prelude::*;
+    /// assert_eq!(Interval::<usize>::empty(), Interval::<usize>::empty());
+    /// assert_ne!(Interval::new(0, 1), Interval::empty());
+    /// assert_ne!(Interval::empty(), Interval::singleton(11));
+    /// ```
     fn eq(&self, other: &Interval<Bound>) -> bool {
         if self.is_empty() && other.is_empty() {
             true
@@ -116,6 +130,35 @@ impl<Bound> Range for Interval<Bound>
 where
     Bound: Width,
 {
+    /// Constructs an interval with the lower and upper bound (inclusive).
+    /// ```
+    /// # use interval::prelude::*;
+    /// let interval = Interval::new(3, 8);
+    /// assert_eq!(interval.lower(), 3);
+    /// assert_eq!(interval.upper(), 8);
+    /// assert!(interval.contains(&3));
+    /// assert!(!interval.contains(&2));
+    /// assert!(interval.contains(&8));
+    /// assert!(!interval.contains(&9));
+    /// assert!(!interval.is_empty());
+    /// ```
+    /// For intervals containing a single value, the [`Interval::singleton`] constructor is preferred.
+    /// ```
+    /// # use interval::prelude::*;
+    /// assert_eq!(Interval::new(6, 6), Interval::singleton(6));
+    /// ```
+    /// For an empty interval, use the [`Interval::empty`] constructor.
+    ///
+    /// The bounds of the constructor are bounded by [`Interval::whole`].
+    /// This means that not all possible intervals can be constructed.
+    /// ```should_panic
+    /// # use interval::prelude::*;
+    /// Interval::<u8>::new(0, 255); // panics!
+    /// Interval::<u8>::new(0, 254); // constructs normally
+    ///
+    /// Interval::<i8>::new(-128, 127); // panics!
+    /// Interval::<i8>::new(-127, 127); // constructs normally
+    /// ```
     fn new(lb: Bound, ub: Bound) -> Interval<Bound> {
         debug_assert!(
             lb >= <Bound as Width>::min_value(),
@@ -133,6 +176,17 @@ impl<Bound> Bounded for Interval<Bound>
 where
     Bound: Num + Width + Clone,
 {
+    /// Returns the lower bound of an interval.
+    /// ```
+    /// # use interval::prelude::*;
+    /// assert_eq!(Interval::new(8, 20).lower(), 8);
+    /// assert_eq!(Interval::singleton(4).lower(), 4);
+    /// ```
+    /// However, this will panic on an empty interval.
+    /// ```should_panic
+    /// # use interval::prelude::*;
+    /// Interval::<u8>::empty().lower(); // panics!
+    /// ```
     fn lower(&self) -> Bound {
         debug_assert!(
             !self.is_empty(),
@@ -141,6 +195,17 @@ where
         self.low()
     }
 
+    /// Returns the upper bound of an interval.
+    /// ```
+    /// # use interval::prelude::*;
+    /// assert_eq!(Interval::new(8, 20).upper(), 20);
+    /// assert_eq!(Interval::singleton(4).upper(), 4);
+    /// ```
+    /// However, this will panic on an empty interval.
+    /// ```should_panic
+    /// # use interval::prelude::*;
+    /// Interval::<u8>::empty().upper(); // panics!
+    /// ```
     fn upper(&self) -> Bound {
         debug_assert!(
             !self.is_empty(),
@@ -154,6 +219,15 @@ impl<Bound> Singleton for Interval<Bound>
 where
     Bound: Width + Clone,
 {
+    /// Constructs an interval containing a single value - the lower and upper bounds are the same.
+    /// ```
+    /// # use interval::prelude::*;
+    /// let interval_5 = Interval::singleton(5);
+    /// assert_eq!(interval_5.size(), 1 as u32);
+    /// assert_eq!(interval_5.lower(), interval_5.upper());
+    /// assert!(interval_5.contains(&5));
+    /// assert!(!interval_5.is_empty());
+    /// ```
     fn singleton(x: Bound) -> Interval<Bound> {
         Interval::new(x.clone(), x)
     }
@@ -163,6 +237,13 @@ impl<Bound> Empty for Interval<Bound>
 where
     Bound: Width + Num,
 {
+    /// Constructs an empty interval.
+    /// The type needs to be specified or inferred as `Interval` is parametrized by its input.
+    /// ```
+    /// # use interval::prelude::*;
+    /// assert_eq!(Interval::<i32>::empty().size(), 0);
+    /// assert_eq!(Interval::<u32>::empty().size(), 0);
+    /// ```
     fn empty() -> Interval<Bound> {
         Interval::new(Bound::one(), Bound::zero())
     }
@@ -172,6 +253,23 @@ impl<Bound> Whole for Interval<Bound>
 where
     Bound: Width + Num,
 {
+    /// Calculates the maximum range of an interval.
+    ///
+    /// For an unsigned integer, this sets the minimum of the interval to the minimum of the type (e.g. `u32::min_value()`)
+    /// and the maximum to one less than the maximum value (e.ge `u32::max_value() - 1`).
+    ///
+    /// For a signed integer, this sets the minimum of the interval to one more than the minimum of the type (e.g. `i32::min_value() + 1`)
+    /// and the maximum to than the maximum value (e.ge `i32::max_value()`).
+    /// This ensures that it is always possible to calculate the width without overflow (using the same number of bits).
+    /// ```
+    /// # use interval::prelude::*;
+    /// // u8: 0 <-> 255
+    /// assert_eq!(Interval::<u8>::whole(), Interval::new(0, 254));
+    /// // i8: -128 <-> 127
+    /// assert_eq!(Interval::<i8>::whole(), Interval::new(-127, 127));
+    /// assert_eq!(Interval::<usize>::whole(), Interval::new(usize::min_value(), usize::max_value() - 1));
+    /// assert_eq!(Interval::<isize>::whole(), Interval::new(isize::min_value() + 1, isize::max_value()));
+    /// ```
     fn whole() -> Interval<Bound> {
         Interval::new(<Bound as Width>::min_value(), <Bound as Width>::max_value())
     }
@@ -184,6 +282,19 @@ where
 {
     type Size = <Bound as Width>::Output;
 
+    /// Calculates the size of an interval (the number of integers it contains).
+    /// This includes both endpoints.
+    /// The size of the interval is unsigned, but has the same number of bits as the interval bounds.
+    /// ```
+    /// # use interval::prelude::*;
+    /// assert_eq!(Interval::<i32>::new(1, 10).size(), 10 as u32);
+    /// assert_eq!(Interval::<usize>::new(1, 10).size(), 10 as usize);
+    /// // Default is to use i32.
+    /// assert_eq!(Interval::singleton(5).size(), 1 as u32);
+    /// assert_eq!(Interval::<i64>::empty().size(), 0);
+    /// // Doesn't overflow:
+    /// assert_eq!(Interval::<usize>::whole().size(), usize::max_value());
+    /// ```
     fn size(&self) -> <Bound as Width>::Output {
         if self.lb > self.ub {
             <<Bound as Width>::Output>::zero()
@@ -197,6 +308,17 @@ impl<Bound> Disjoint for Interval<Bound>
 where
     Bound: Width + Num,
 {
+    /// Calculates whether two intervals do *not* overlap.
+    /// ```
+    /// # use interval::prelude::*;
+    /// assert_eq!(Interval::new(8, 9).is_disjoint(&Interval::new(1, 2)), true);
+    /// assert_eq!(Interval::new(1, 5).is_disjoint(&Interval::new(3, 4)), false);
+    /// assert_eq!(Interval::new(3, 5).is_disjoint(&Interval::new(5, 7)), false);
+    /// assert_eq!(Interval::new(3, 3).is_disjoint(&Interval::new(3, 3)), false);
+    /// assert_eq!(Interval::empty().is_disjoint(&Interval::new(2, 3)), true);
+    /// assert_eq!(Interval::new(4, 6).is_disjoint(&Interval::empty()), true);
+    /// assert_eq!(Interval::<usize>::empty().is_disjoint(&Interval::empty()), true);
+    /// ```
     fn is_disjoint(&self, other: &Interval<Bound>) -> bool {
         self.is_empty() || other.is_empty() || self.lb > other.ub || other.lb > self.ub
     }
@@ -206,6 +328,15 @@ impl<Bound> Disjoint<Bound> for Interval<Bound>
 where
     Bound: Num + Ord,
 {
+    /// Calculates whether a value is excluded from an interval.
+    /// ```
+    /// # use interval::prelude::*;
+    /// assert_eq!(Interval::new(8, 9).is_disjoint(&1), true);
+    /// assert_eq!(Interval::new(1, 5).is_disjoint(&3), false);
+    /// assert_eq!(Interval::new(3, 5).is_disjoint(&5), false);
+    /// assert_eq!(Interval::new(3, 3).is_disjoint(&3), false);
+    /// assert_eq!(Interval::empty().is_disjoint(&6), true);
+    /// ```
     fn is_disjoint(&self, value: &Bound) -> bool {
         !self.contains(value)
     }
@@ -217,6 +348,19 @@ macro_rules! primitive_interval_disjoint
   {$(
     impl Disjoint<Interval<$source>> for $source
     {
+      #[doc = concat!(
+        r#"
+        Calculates whether a value is excluded from an interval.
+        ```
+        # use interval::prelude::*;
+        assert_eq!((1 as "#, stringify!($source), r#").is_disjoint(&Interval::new(8, 9)), true);
+        assert_eq!((3 as "#, stringify!($source), r#").is_disjoint(&Interval::new(1, 5)), false);
+        assert_eq!((5 as "#, stringify!($source), r#").is_disjoint(&Interval::new(3, 5)), false);
+        assert_eq!((3 as "#, stringify!($source), r#").is_disjoint(&Interval::new(3, 3)), false);
+        assert_eq!((6 as "#, stringify!($source), r#").is_disjoint(&Interval::empty()), true);
+        ```
+        "#
+      )]
       fn is_disjoint(&self, value: &Interval<$source>) -> bool {
         value.is_disjoint(self)
       }
@@ -230,6 +374,17 @@ impl<Bound> Disjoint<Optional<Bound>> for Interval<Bound>
 where
     Bound: Num + Ord,
 {
+    /// Calculates whether an optional is excluded from an interval.
+    /// ```
+    /// # use interval::prelude::*;
+    /// assert_eq!(Interval::new(8, 9).is_disjoint(&Optional::singleton(1)), true);
+    /// assert_eq!(Interval::new(1, 5).is_disjoint(&Optional::singleton(3)), false);
+    /// assert_eq!(Interval::new(3, 5).is_disjoint(&Optional::singleton(5)), false);
+    /// assert_eq!(Interval::new(3, 3).is_disjoint(&Optional::singleton(3)), false);
+    /// assert_eq!(Interval::<usize>::empty().is_disjoint(&Optional::singleton(6)), true);
+    /// assert_eq!(Interval::new(4, 7).is_disjoint(&Optional::empty()), true);
+    /// assert_eq!(Interval::<isize>::empty().is_disjoint(&Optional::empty()), true);
+    /// ```
     fn is_disjoint(&self, value: &Optional<Bound>) -> bool {
         value.as_ref().map_or(true, |x| self.is_disjoint(x))
     }
@@ -241,6 +396,21 @@ macro_rules! optional_interval_disjoint
   {$(
     impl Disjoint<Interval<$source>> for Optional<$source>
     {
+      #[doc = concat!(
+        r#"
+        Calculates whether an optional is excluded from an interval.
+        ```
+        # use interval::prelude::*;
+        assert_eq!(Optional::<"#, stringify!($source), r#">::singleton(1).is_disjoint(&Interval::new(8, 9)), true);
+        assert_eq!(Optional::<"#, stringify!($source), r#">::singleton(3).is_disjoint(&Interval::new(1, 5)), false);
+        assert_eq!(Optional::<"#, stringify!($source), r#">::singleton(5).is_disjoint(&Interval::new(3, 5)), false);
+        assert_eq!(Optional::<"#, stringify!($source), r#">::singleton(3).is_disjoint(&Interval::new(3, 3)), false);
+        assert_eq!(Optional::<"#, stringify!($source), r#">::singleton(6).is_disjoint(&Interval::empty()), true);
+        assert_eq!(Optional::<"#, stringify!($source), r#">::empty().is_disjoint(&Interval::new(4, 7)), true);
+        assert_eq!(Optional::<"#, stringify!($source), r#">::empty().is_disjoint(&Interval::empty()), true);
+        ```
+        "#
+      )]
       fn is_disjoint(&self, value: &Interval<$source>) -> bool {
         value.is_disjoint(self)
       }
@@ -254,6 +424,17 @@ impl<Bound> Overlap for Interval<Bound>
 where
     Bound: Width + Num,
 {
+    /// Calculates whether two intervals overlap.
+    /// ```
+    /// # use interval::prelude::*;
+    /// assert_eq!(Interval::new(8, 9).overlap(&Interval::new(1, 2)), false);
+    /// assert_eq!(Interval::new(1, 5).overlap(&Interval::new(3, 4)), true);
+    /// assert_eq!(Interval::new(3, 5).overlap(&Interval::new(5, 7)), true);
+    /// assert_eq!(Interval::new(3, 3).overlap(&Interval::new(3, 3)), true);
+    /// assert_eq!(Interval::empty().overlap(&Interval::new(2, 3)), false);
+    /// assert_eq!(Interval::new(4, 6).overlap(&Interval::empty()), false);
+    /// assert_eq!(Interval::<usize>::empty().overlap(&Interval::empty()), false);
+    /// ```
     fn overlap(&self, other: &Interval<Bound>) -> bool {
         !self.is_disjoint(other)
     }
@@ -263,6 +444,15 @@ impl<Bound> Overlap<Bound> for Interval<Bound>
 where
     Bound: Width + Num,
 {
+    /// Calculates whether a value is included in an interval.
+    /// ```
+    /// # use interval::prelude::*;
+    /// assert_eq!(Interval::new(8, 9).overlap(&1), false);
+    /// assert_eq!(Interval::new(1, 5).overlap(&3), true);
+    /// assert_eq!(Interval::new(3, 5).overlap(&5), true);
+    /// assert_eq!(Interval::new(3, 3).overlap(&3), true);
+    /// assert_eq!(Interval::empty().overlap(&6), false);
+    /// ```
     fn overlap(&self, other: &Bound) -> bool {
         !self.is_disjoint(other)
     }
@@ -272,6 +462,17 @@ impl<Bound> Overlap<Optional<Bound>> for Interval<Bound>
 where
     Bound: Width + Num,
 {
+    /// Calculates whether an optional is included from an interval.
+    /// ```
+    /// # use interval::prelude::*;
+    /// assert_eq!(Interval::new(8, 9).overlap(&Optional::singleton(1)), false);
+    /// assert_eq!(Interval::new(1, 5).overlap(&Optional::singleton(3)), true);
+    /// assert_eq!(Interval::new(3, 5).overlap(&Optional::singleton(5)), true);
+    /// assert_eq!(Interval::new(3, 3).overlap(&Optional::singleton(3)), true);
+    /// assert_eq!(Interval::<usize>::empty().overlap(&Optional::singleton(6)), false);
+    /// assert_eq!(Interval::new(4, 7).overlap(&Optional::empty()), false);
+    /// assert_eq!(Interval::<isize>::empty().overlap(&Optional::empty()), false);
+    /// ```
     fn overlap(&self, other: &Optional<Bound>) -> bool {
         !self.is_disjoint(other)
     }
@@ -283,6 +484,19 @@ macro_rules! primitive_interval_overlap
   {$(
     impl Overlap<Interval<$source>> for $source
     {
+      #[doc = concat!(
+        r#"
+        Calculates whether a value is included in an interval.
+        ```
+        # use interval::prelude::*;
+        assert_eq!((1 as "#, stringify!($source), r#").overlap(&Interval::new(8, 9)), false);
+        assert_eq!((3 as "#, stringify!($source), r#").overlap(&Interval::new(1, 5)), true);
+        assert_eq!((5 as "#, stringify!($source), r#").overlap(&Interval::new(3, 5)), true);
+        assert_eq!((3 as "#, stringify!($source), r#").overlap(&Interval::new(3, 3)), true);
+        assert_eq!((6 as "#, stringify!($source), r#").overlap(&Interval::empty()), false);
+        ```
+        "#
+      )]
       fn overlap(&self, other: &Interval<$source>) -> bool {
         !self.is_disjoint(other)
       }
@@ -298,6 +512,21 @@ macro_rules! optional_interval_overlap
   {$(
     impl Overlap<Interval<$source>> for Optional<$source>
     {
+      #[doc = concat!(
+        r#"
+        Calculates whether an optional is included in an interval.
+        ```
+        # use interval::prelude::*;
+        assert_eq!(Optional::<"#, stringify!($source), r#">::singleton(1).overlap(&Interval::new(8, 9)), false);
+        assert_eq!(Optional::<"#, stringify!($source), r#">::singleton(3).overlap(&Interval::new(1, 5)), true);
+        assert_eq!(Optional::<"#, stringify!($source), r#">::singleton(5).overlap(&Interval::new(3, 5)), true);
+        assert_eq!(Optional::<"#, stringify!($source), r#">::singleton(3).overlap(&Interval::new(3, 3)), true);
+        assert_eq!(Optional::<"#, stringify!($source), r#">::singleton(6).overlap(&Interval::empty()), false);
+        assert_eq!(Optional::<"#, stringify!($source), r#">::empty().overlap(&Interval::new(4, 7)), false);
+        assert_eq!(Optional::<"#, stringify!($source), r#">::empty().overlap(&Interval::empty()), false);
+        ```
+        "#
+      )]
       fn overlap(&self, other: &Interval<$source>) -> bool {
         !self.is_disjoint(other)
       }
@@ -313,6 +542,16 @@ where
 {
     type Output = Interval<Bound>;
 
+    /// Calculates the smallest interval containing two intervals.
+    /// ```
+    /// # use interval::prelude::*;
+    /// assert_eq!(Interval::hull(&Interval::new(1, 3), &Interval::new(5, 8)), Interval::new(1, 8));
+    /// assert_eq!(Interval::new(1, 3).hull(&Interval::new(5, 8)), Interval::new(1, 8));
+    /// assert_eq!(Interval::new(1, 6).hull(&Interval::new(4, 7)), Interval::new(1, 7));
+    /// assert_eq!(Interval::new(3, 9).hull(&Interval::new(5, 6)), Interval::new(3, 9));
+    /// assert_eq!(Interval::new(1, 3).hull(&Interval::empty()), Interval::new(1, 3));
+    /// assert_eq!(Interval::<usize>::empty().hull(&Interval::empty()), Interval::empty());
+    /// ```
     fn hull(&self, other: &Interval<Bound>) -> Interval<Bound> {
         if self.is_empty() {
             other.clone()
@@ -330,6 +569,15 @@ where
 {
     type Output = Interval<Bound>;
 
+    /// Calculates the smallest interval containing an interval and a value.
+    /// ```
+    /// # use interval::prelude::*;
+    /// assert_eq!(Interval::new(5, 8).hull(&3), Interval::new(3, 8));
+    /// assert_eq!(Interval::new(1, 3).hull(&2), Interval::new(1, 3));
+    /// assert_eq!(Interval::new(2, 6).hull(&9), Interval::new(2, 9));
+    /// assert_eq!(Interval::singleton(4).hull(&4), Interval::singleton(4));
+    /// assert_eq!(Interval::empty().hull(&5), Interval::singleton(5));
+    /// ```
     fn hull(&self, other: &Bound) -> Interval<Bound> {
         self.hull(&Interval::singleton(other.clone()))
     }
@@ -343,6 +591,19 @@ macro_rules! primitive_interval_hull
     {
       type Output = Interval<$source>;
 
+      #[doc = concat!(
+        r#"
+        Calculates the smallest interval containing an interval and a value.
+        ```
+        # use interval::prelude::*;
+        assert_eq!((3 as "#, stringify!($source), r#").hull(&Interval::new(5, 8)), Interval::new(3, 8));
+        assert_eq!((2 as "#, stringify!($source), r#").hull(&Interval::new(1, 3)), Interval::new(1, 3));
+        assert_eq!((9 as "#, stringify!($source), r#").hull(&Interval::new(2, 6)), Interval::new(2, 9));
+        assert_eq!((4 as "#, stringify!($source), r#").hull(&Interval::singleton(4)), Interval::singleton(4));
+        assert_eq!((5 as "#, stringify!($source), r#").hull(&Interval::empty()), Interval::singleton(5));
+        ```
+        "#
+      )]
       fn hull(&self, other: &Interval<$source>) -> Interval<$source> {
         other.hull(self)
       }
@@ -356,6 +617,25 @@ impl<Bound> Contains for Interval<Bound>
 where
     Bound: Ord,
 {
+    /// Calculates whether an interval contains a value.
+    /// ```
+    /// # use interval::prelude::*;
+    /// let interval = Interval::new(1, 4);
+    /// assert!(interval.contains(&1));
+    /// assert!(interval.contains(&2));
+    /// assert!(interval.contains(&3));
+    /// assert!(interval.contains(&4));
+    ///
+    /// assert!(!interval.contains(&0));
+    /// assert!(!interval.contains(&5));
+    /// ```
+    /// The empty interval contains nothing.
+    /// ```
+    /// # use interval::prelude::*;
+    /// let empty = Interval::empty();
+    /// assert!(!empty.contains(&-3));
+    /// assert!(!empty.contains(&5));
+    /// ```
     fn contains(&self, value: &Bound) -> bool {
         value >= &self.lb && value <= &self.ub
     }
@@ -365,6 +645,19 @@ impl<Bound> Subset for Interval<Bound>
 where
     Bound: Width + Num,
 {
+    /// Calculates whether one interval is contained in another.
+    /// The empty interval is a subset of everything.
+    /// ```
+    /// # use interval::prelude::*;
+    /// assert_eq!(Interval::new(1, 4).is_subset(&Interval::new(2, 6)), false);
+    /// assert_eq!(Interval::new(6, 7).is_subset(&Interval::new(3, 7)), true);
+    /// assert_eq!(Interval::new(8, 9).is_subset(&Interval::new(1, 2)), false);
+    /// assert_eq!(Interval::new(3, 6).is_subset(&Interval::new(4, 5)), false);
+    /// assert_eq!(Interval::new(5, 8).is_subset(&Interval::new(5, 8)), true);
+    ///
+    /// assert_eq!(Interval::empty().is_subset(&Interval::new(5, 8)), true);
+    /// assert_eq!(Interval::<usize>::empty().is_subset(&Interval::empty()), true);
+    /// ```
     fn is_subset(&self, other: &Interval<Bound>) -> bool {
         if self.is_empty() {
             true
@@ -378,6 +671,19 @@ impl<Bound> ProperSubset for Interval<Bound>
 where
     Bound: Width + Num,
 {
+    /// Calculates whether one interval is contained in another but they are not equal.
+    /// The empty interval is a subset of everything, except itself.
+    /// ```
+    /// # use interval::prelude::*;
+    /// assert_eq!(Interval::new(1, 4).is_proper_subset(&Interval::new(2, 6)), false);
+    /// assert_eq!(Interval::new(6, 7).is_proper_subset(&Interval::new(3, 7)), true);
+    /// assert_eq!(Interval::new(8, 9).is_proper_subset(&Interval::new(1, 2)), false);
+    /// assert_eq!(Interval::new(3, 6).is_proper_subset(&Interval::new(4, 5)), false);
+    /// assert_eq!(Interval::new(5, 8).is_proper_subset(&Interval::new(5, 8)), false);
+    ///
+    /// assert_eq!(Interval::empty().is_proper_subset(&Interval::new(5, 8)), true);
+    /// assert_eq!(Interval::<usize>::empty().is_proper_subset(&Interval::empty()), false);
+    /// ```
     fn is_proper_subset(&self, other: &Interval<Bound>) -> bool {
         self.is_subset(other) && self != other
     }
@@ -389,6 +695,16 @@ where
 {
     type Output = Interval<Bound>;
 
+    /// Calculates the intersection of two intervals.
+    /// ```
+    /// # use interval::prelude::*;
+    /// assert_eq!(Interval::intersection(&Interval::new(1, 4), &Interval::new(2, 6)), Interval::new(2, 4));
+    /// assert_eq!(Interval::new(1, 4).intersection(&Interval::new(2, 6)), Interval::new(2, 4));
+    ///
+    /// assert_eq!(Interval::new(6, 7).intersection(&Interval::new(3, 9)), Interval::new(6, 7));
+    /// assert_eq!(Interval::new(8, 9).intersection(&Interval::new(1, 2)), Interval::empty());
+    /// assert_eq!(Interval::new(5, 8).intersection(&Interval::new(8, 10)), Interval::singleton(8));
+    /// ```
     fn intersection(&self, other: &Interval<Bound>) -> Interval<Bound> {
         Interval::new(max(self.low(), other.low()), min(self.up(), other.up()))
     }
@@ -399,6 +715,14 @@ where
     Bound: Width + Num,
 {
     type Output = Interval<Bound>;
+    /// Calculates whether value is contained in an interval.
+    /// ```
+    /// # use interval::prelude::*;
+    /// assert_eq!(Interval::new(3, 8).intersection(&4), Interval::singleton(4));
+    /// assert_eq!(Interval::new(7, 9).intersection(&9), Interval::singleton(9));
+    /// assert_eq!(Interval::new(1, 4).intersection(&1), Interval::singleton(1));
+    /// assert_eq!(Interval::empty().intersection(&9), Interval::empty());
+    /// ```
 
     fn intersection(&self, value: &Bound) -> Interval<Bound> {
         if self.contains(value) {
@@ -415,6 +739,15 @@ where
 {
     type Output = Interval<Bound>;
 
+    /// Calculates whether an optional is contained in an interval.
+    /// ```
+    /// # use interval::prelude::*;
+    /// assert_eq!(Interval::new(3, 8).intersection(&Optional::singleton(4)), Interval::singleton(4));
+    /// assert_eq!(Interval::new(7, 9).intersection(&Optional::singleton(9)), Interval::singleton(9));
+    /// assert_eq!(Interval::new(1, 4).intersection(&Optional::singleton(0)), Interval::empty());
+    /// assert_eq!(Interval::empty().intersection(&Optional::singleton(9)), Interval::empty());
+    /// assert_eq!(Interval::new(2, 6).intersection(&Optional::empty()), Interval::empty());
+    /// ```
     fn intersection(&self, value: &Optional<Bound>) -> Interval<Bound> {
         value
             .as_ref()
@@ -429,7 +762,19 @@ macro_rules! optional_interval_intersection
     impl Intersection<Interval<$source>> for Optional<$source>
     {
       type Output = Optional<$source>;
-
+      #[doc = concat!(
+        r#"
+        Calculates whether the optional is contained in an interval.
+        ```
+        # use interval::prelude::*;
+        assert_eq!(Optional::<"#, stringify!($source), r#">::singleton(4).intersection(&Interval::new(3, 8)), Optional::singleton(4));
+        assert_eq!(Optional::<"#, stringify!($source), r#">::singleton(9).intersection(&Interval::new(7, 9)), Optional::singleton(9));
+        assert_eq!(Optional::<"#, stringify!($source), r#">::singleton(0).intersection(&Interval::new(1, 4)), Optional::empty());
+        assert_eq!(Optional::<"#, stringify!($source), r#">::singleton(9).intersection(&Interval::empty()), Optional::empty());
+        assert_eq!(Optional::<"#, stringify!($source), r#">::empty().intersection(&Interval::new(2, 6)), Optional::empty());
+        ```
+        "#
+      )]
       fn intersection(&self, other: &Interval<$source>) -> Optional<$source> {
         self.as_ref().map_or(Optional::empty(), |x| other.intersection(x).into_optional())
       }
@@ -445,15 +790,27 @@ where
 {
     type Output = Interval<Bound>;
 
-    // A - B is equivalent to A /\ ~B
-    // However the complement operation doesn't make sense here
-    // because it'd nearly always ends up to the whole integer interval.
-    // Instead we use this equivalence:
-    //   A - B is equivalent to:
-    //      A /\ [inf,B.lb-1]
-    //    \/
-    //      A /\ [B.ub+1, inf]
+    /// Calculates the interval covering values in the left interval but not the right interval.
+    /// ```
+    /// # use interval::prelude::*;
+    /// assert_eq!(Interval::new(4, 9).difference(&Interval::new(6, 11)), Interval::new(4, 5));
+    /// // The lower [1, 2] and higher [3, 10] values are included, and the smallest interval containing them is [1, 10].
+    /// assert_eq!(Interval::new(1, 10).difference(&Interval::new(2, 3)), Interval::new(1, 10));
+    /// // 5 is included in both intervals so the difference starts at 6.
+    /// assert_eq!(Interval::new(4, 7).difference(&Interval::new(4, 5)), Interval::new(6, 7));
+    /// assert_eq!(Interval::new(2, 3).difference(&Interval::new(1, 10)), Interval::empty());
+    /// assert_eq!(Interval::new(5, 6).difference(&Interval::empty()), Interval::new(5, 6));
+    /// assert_eq!(Interval::empty().difference(&Interval::new(2, 6)), Interval::empty());
+    /// ```
     fn difference(&self, other: &Interval<Bound>) -> Interval<Bound> {
+        // A - B is equivalent to A /\ ~B
+        // However the complement operation doesn't make sense here
+        // because it'd nearly always ends up to the whole integer interval.
+        // Instead we use this equivalence:
+        //   A - B is equivalent to:
+        //      A /\ [inf,B.lb-1]
+        //    \/
+        //      A /\ [B.ub+1, inf]
         let left = self.intersection(&Interval::min_lb(other.low() - Bound::one()));
         let right = self.intersection(&Interval::max_ub(other.up() + Bound::one()));
         left.hull(&right)
@@ -466,6 +823,17 @@ where
 {
     type Output = Interval<Bound>;
 
+    /// Calculates the interval covering values in the left interval, excluding `value`.
+    /// ```
+    /// # use interval::prelude::*;
+    /// // 5 is included in the interval but the smallest interval covering the new range is [4, 9].
+    /// assert_eq!(Interval::new(4, 9).difference(&5), Interval::new(4, 9));
+    /// assert_eq!(Interval::new(1, 5).difference(&7), Interval::new(1, 5));
+    /// assert_eq!(Interval::new(4, 7).difference(&4), Interval::new(5, 7));
+    /// assert_eq!(Interval::new(2, 6).difference(&6), Interval::new(2, 5));
+    /// assert_eq!(Interval::new(8, 8).difference(&8), Interval::empty());
+    /// assert_eq!(Interval::empty().difference(&2), Interval::empty());
+    /// ```
     fn difference(&self, value: &Bound) -> Interval<Bound> {
         let mut this = self.clone();
         if value == &this.lb {
@@ -483,6 +851,14 @@ where
 {
     type Output = Interval<Bound>;
 
+    /// Calculates the interval covering values in the left interval, excluding `value`.
+    /// See [`Difference<Bound>`](#method.difference-1) for details of when the `Optional` contains a value.
+    /// ```
+    /// # use interval::prelude::*;
+    /// assert_eq!(Interval::new(4, 9).difference(&Optional::singleton(5)), Interval::new(4, 9));
+    /// assert_eq!(Interval::new(3, 5).difference(&Optional::empty()), Interval::new(3, 5));
+    /// assert_eq!(Interval::new(8, 8).difference(&Optional::empty()), Interval::new(8, 8));
+    /// ```
     fn difference(&self, value: &Optional<Bound>) -> Interval<Bound> {
         value
             .as_ref()
@@ -497,7 +873,18 @@ macro_rules! optional_interval_difference
     impl Difference<Interval<$source>> for Optional<$source>
     {
       type Output = Optional<$source>;
-
+      #[doc = concat!(
+        r#"
+        Calculates whether an optional is outside of an interval.
+        ```
+        # use interval::prelude::*;
+        assert_eq!(Optional::<"#, stringify!($source), r#">::singleton(4).difference(&Interval::new(3, 8)), Optional::empty());
+        assert_eq!(Optional::<"#, stringify!($source), r#">::singleton(8).difference(&Interval::new(7, 9)), Optional::empty());
+        assert_eq!(Optional::<"#, stringify!($source), r#">::singleton(3).difference(&Interval::new(1, 4)), Optional::empty());
+        assert_eq!(Optional::<"#, stringify!($source), r#">::singleton(9).difference(&Interval::empty()), Optional::singleton(9));
+        assert_eq!(Optional::<"#, stringify!($source), r#">::empty().difference(&Interval::new(2, 6)), Optional::empty());
+        ```
+      "#)]
       fn difference(&self, other: &Interval<$source>) -> Optional<$source> {
         self.as_ref().map_or(Optional::empty(), |x|
           if other.contains(x) { Optional::empty() }
@@ -514,6 +901,20 @@ impl<Bound> ShrinkLeft for Interval<Bound>
 where
     Bound: Num + Width,
 {
+    /// Updates the lower bound to be greater than or equal to `lb`.
+    /// ```
+    /// use interval::prelude::*;
+    /// let a = Interval::new(5, 9);
+    /// // Increase the lower bound.
+    /// let b = a.shrink_left(7);
+    /// assert_eq!(b, Interval::new(7, 9));
+    /// // No effect on the lower bound.
+    /// let c = a.shrink_left(4);
+    /// assert_eq!(c, a);
+    /// // Empty interval.
+    /// let d = a.shrink_left(10);
+    /// assert!(d.is_empty());
+    /// ```
     fn shrink_left(&self, lb: Bound) -> Interval<Bound> {
         let mut this = self.clone();
         if lb > this.lb {
@@ -527,6 +928,20 @@ impl<Bound> ShrinkRight for Interval<Bound>
 where
     Bound: Num + Width,
 {
+    /// Updates the upper bound to be less than or equal to `ub`.
+    /// ```
+    /// use interval::prelude::*;
+    /// let a = Interval::new(5, 9);
+    /// // Decrease the upper bound.
+    /// let b = a.shrink_right(8);
+    /// assert_eq!(b, Interval::new(5, 8));
+    /// // No effect on the upper bound.
+    /// let c = a.shrink_right(12);
+    /// assert_eq!(c, a);
+    /// // Empty interval.
+    /// let d = a.shrink_right(3);
+    /// assert!(d.is_empty());
+    /// ```
     fn shrink_right(&self, ub: Bound) -> Interval<Bound> {
         let mut this = self.clone();
         if ub < this.ub {
@@ -544,6 +959,20 @@ where
 {
     type Output = Interval<Bound>;
 
+    /// Adds two intervals, by adding the lower and upper bounds to calculate a new interval.
+    /// ```
+    /// # use interval::prelude::*;
+    /// let a = Interval::new(5, 9);
+    /// let b = Interval::new(-2, 4);
+    /// assert_eq!(a + b, Interval::new(3, 13));
+    /// ```
+    /// This method preserves empty intervals.
+    /// ```
+    /// # use interval::prelude::*;
+    /// let a = Interval::new(5, 9);
+    /// let b = Interval::empty();
+    /// assert!((a + b).is_empty());
+    /// ```
     fn add(self, other: &Interval<Bound>) -> Interval<Bound> {
         if self.is_empty() || other.is_empty() {
             Interval::empty()
@@ -561,6 +990,21 @@ where
 {
     type Output = Interval<Bound>;
 
+    /// Adds a constant to an interval.
+    /// ```
+    /// # use interval::prelude::*;
+    /// assert_eq!(Interval::new(5, 9) + 4, Interval::new(9, 13));
+    /// ```
+    /// This method preserves empty intervals.
+    /// ```
+    /// # use interval::prelude::*;
+    /// assert!((Interval::empty() + 4).is_empty());
+    /// ```
+    /// It is not possible to add an interval to a constant.
+    /// ```compile_fail
+    /// # use interval::prelude::*;
+    /// let _ = 4 + Interval::new(5, 9); // doesn't compile
+    /// ```
     fn add(self, other: &Bound) -> Interval<Bound> {
         if self.is_empty() {
             Interval::empty()
@@ -578,6 +1022,22 @@ where
 {
     type Output = Interval<Bound>;
 
+    /// Subtracts two intervals to calculate the interval of the result.
+    /// The upper bound of `a - b` is `a.upper() - b.lower()` and
+    /// the lower bound is `a.lower() - b.upper()`.
+    /// ```
+    /// # use interval::prelude::*;
+    /// let a = Interval::new(5, 9);
+    /// let b = Interval::new(-2, 4);
+    /// assert_eq!(a - b, Interval::new(1, 11));
+    /// ```
+    /// This method preserves empty intervals.
+    /// ```
+    /// # use interval::prelude::*;
+    /// let a = Interval::new(5, 9);
+    /// let b = Interval::empty();
+    /// assert!((a - b).is_empty());
+    /// ```
     fn sub(self, other: &Interval<Bound>) -> Interval<Bound> {
         if self.is_empty() || other.is_empty() {
             Interval::empty()
@@ -595,6 +1055,21 @@ where
 {
     type Output = Interval<Bound>;
 
+    /// Subtracts a constant from an interval.
+    /// ```
+    /// # use interval::prelude::*;
+    /// assert_eq!(Interval::new(5, 9) - 4, Interval::new(1, 5));
+    /// ```
+    /// This method preserves empty intervals.
+    /// ```
+    /// # use interval::prelude::*;
+    /// assert!((Interval::empty() - 4).is_empty());
+    /// ```
+    /// It is not possible to subtract an interval from a constant.
+    /// ```compile_fail
+    /// # use interval::prelude::*;
+    /// let _ = 4 - Interval::new(5, 9); // doesn't compile
+    /// ```
     fn sub(self, other: &Bound) -> Interval<Bound> {
         if self.is_empty() {
             Interval::empty()
@@ -673,8 +1148,27 @@ where
 {
     type Output = Interval<Bound>;
 
-    // Caution: Consider `[0,1] * [3,5]`, the result `[0,5]` is an over-approximation.
+    /// Multiplies two intervals by multiplying the lower and upper bounds.
+    /// Caution: the resulting interval is often an over-approximation.
+    /// ```
+    /// # use interval::prelude::*;
+    /// assert_eq!(Interval::new(0, 1) * Interval::new(3, 5), Interval::new(0, 5));
+    /// ```
+    /// The interval produced is the smallest possible interval,
+    /// however, only the values 0 and 3 are possible results of the multiplication.
+    ///
+    /// This method preserves empty intervals.
+    /// ```
+    /// # use interval::prelude::*;
+    /// assert!((Interval::empty() * 4).is_empty());
+    /// ```
+    /// It is not possible to multiply a constant by an interval.
+    /// ```compile_fail
+    /// # use interval::prelude::*;
+    /// let _ = 4 * Interval::new(5, 9); // doesn't compile
+    /// ```
     fn mul(self, other: &Interval<Bound>) -> Interval<Bound> {
+        // Caution: Consider `[0,1] * [3,5]`, the result `[0,5]` is an over-approximation.
         if self.is_empty() || other.is_empty() {
             Interval::empty()
         } else {
@@ -700,7 +1194,24 @@ where
 {
     type Output = Interval<Bound>;
 
-    // Caution: Consider `[0,1] * 3`, the result `[0,3]` is an over-approximation.
+    /// Multiplies an interval by a constant.
+    /// Caution: the resulting interval is often an over-approximation.
+    /// ```
+    /// # use interval::prelude::*;
+    /// assert_eq!(Interval::new(0, 1) * 3, Interval::new(0, 3));
+    /// ```
+    /// The interval produced is the smallest possible interval,
+    ///
+    /// This method preserves empty intervals.
+    /// ```
+    /// # use interval::prelude::*;
+    /// assert!((Interval::empty() * 4).is_empty());
+    /// ```
+    /// It is not possible to multiply a constant by an interval.
+    /// ```compile_fail
+    /// # use interval::prelude::*;
+    /// let _ = 4 * Interval::new(5, 9); // doesn't compile
+    /// ```
     fn mul(self, other: &Bound) -> Interval<Bound> {
         if self.is_empty() {
             Interval::empty()
@@ -714,6 +1225,15 @@ impl<Bound> Display for Interval<Bound>
 where
     Bound: Display + Width + Num,
 {
+    /// Formats an interval.
+    /// Empty intervals are displayed as the empty set "{}".
+    /// Non empty intervals are displayed as [lower..upper].
+    /// ```
+    /// # use interval::prelude::*;
+    /// assert_eq!(format!("{}", Interval::new(3, 5)), "[3..5]");
+    /// assert_eq!(format!("{}", Interval::singleton(4)), "[4..4]");
+    /// assert_eq!(format!("{}", Interval::<usize>::empty()), "{}");
+    /// ```
     fn fmt(&self, formatter: &mut Formatter) -> Result<(), Error> {
         if self.is_empty() {
             formatter.write_str("{}")
@@ -724,16 +1244,43 @@ where
 }
 
 pub trait ToInterval<Bound> {
+    /// Convert a value to an interval.
+    /// For example,
+    /// ```
+    /// # use interval::prelude::*;
+    /// assert_eq!(8.to_interval(), Interval::singleton(8));
+    /// assert_eq!((3, 4).to_interval(), Interval::new(3, 4));
+    /// assert_eq!(().to_interval(), Interval::<usize>::empty());
+    /// ```
     fn to_interval(self) -> Interval<Bound>;
 }
 
 impl<Bound> ToInterval<Bound> for Interval<Bound> {
+    /// Converts an interval to an interval with no action.
+    /// ```
+    /// # use interval::prelude::*;
+    /// let interval = Interval::new(2, 6);
+    /// assert_eq!(interval.to_interval(), interval);
+    ///
+    /// let empty = Interval::<i16>::empty();
+    /// assert_eq!(empty.to_interval(), empty);
+    /// ```
     fn to_interval(self) -> Interval<Bound> {
         self
     }
 }
 
 impl<Bound: Width + Num> ToInterval<Bound> for (Bound, Bound) {
+    /// Converts a tuple to an interval using the first element as the lower bound and second element as the upper bound.
+    /// ```
+    /// # use interval::prelude::*;
+    /// assert_eq!((2, 6).to_interval(), Interval::new(2, 6));
+    /// ```
+    /// The first and second elements need the same type.
+    /// ```compile_fail
+    /// # use interval::prelude::*;
+    /// let _ = (8 as u8, 9 as i8).into_interval(); // doesn't compile
+    /// ```
     fn to_interval(self) -> Interval<Bound> {
         let (a, b) = self;
         Interval::new(a, b)
@@ -741,12 +1288,30 @@ impl<Bound: Width + Num> ToInterval<Bound> for (Bound, Bound) {
 }
 
 impl<Bound: Width + Num> ToInterval<Bound> for () {
+    /// Converts the empty tuple to an empty interval.
+    /// ```
+    /// # use interval::prelude::*;
+    /// assert_eq!(().to_interval(), Interval::<usize>::empty());
+    /// ```
+    /// The type can be specified via the full trait or annotations.
+    /// ```
+    /// # use interval::prelude::*;
+    /// let empty_full_trait = ToInterval::<i32>::to_interval(());
+    /// let empty_annotated: Interval<i32> = ().to_interval();
+    /// assert_eq!(empty_full_trait, Interval::empty());
+    /// assert_eq!(empty_annotated, Interval::empty());
+    /// ```
     fn to_interval(self) -> Interval<Bound> {
         Interval::empty()
     }
 }
 
 impl<Bound: Width + Num> ToInterval<Bound> for Bound {
+    /// Converts a value to a singleton interval.
+    /// ```
+    /// # use interval::prelude::*;
+    /// assert_eq!(9.to_interval(), Interval::singleton(9));
+    /// ```
     fn to_interval(self) -> Interval<Bound> {
         Interval::singleton(self)
     }
@@ -848,8 +1413,8 @@ mod tests {
 
     #[test]
     fn size_test() {
-        let whole_i32: Interval<i32> = Interval::whole();
-        let whole_u32: Interval<u32> = Interval::whole();
+        let whole_i32: Interval<i32> = Interval::<i32>::whole();
+        let whole_u32: Interval<u32> = Interval::<u32>::whole();
 
         assert_eq!(zero.size(), 1);
         assert_eq!(one.size(), 1);
