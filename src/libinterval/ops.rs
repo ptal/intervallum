@@ -10,34 +10,30 @@
 
 use gcollections::kind::*;
 use num_integer::Integer;
-use num_traits::{Unsigned};
 use num_traits::Bounded as NumBounded;
+use num_traits::Unsigned;
 
-pub trait Hull<RHS = Self>
-{
-  type Output;
-  fn hull(&self, rhs: &RHS) -> Self::Output;
+pub trait Hull<RHS = Self> {
+    type Output;
+    fn hull(&self, rhs: &RHS) -> Self::Output;
 }
 
-pub trait Range : Collection
-{
-  fn new(lb: Self::Item, ub: Self::Item) -> Self;
+pub trait Range: Collection {
+    fn new(lb: Self::Item, ub: Self::Item) -> Self;
 }
 
-pub trait Whole
-{
-  fn whole() -> Self;
+pub trait Whole {
+    fn whole() -> Self;
 }
 
 /// Limit of a bound for which the distance between `min_value()` and `max_value()` can be represented in the type `Output`.
-pub trait Width : Ord + Clone
-{
-  type Output: Unsigned + Integer + Clone;
+pub trait Width: Ord + Clone {
+    type Output: Unsigned + Integer + Clone;
 
-  fn max_value() -> Self;
-  fn min_value() -> Self;
-  /// The result might be infinite depending on the underlying type (think about floating types).
-  fn width(lower: &Self, upper: &Self) -> Self::Output;
+    fn max_value() -> Self;
+    fn min_value() -> Self;
+    /// The result might be infinite depending on the underlying type (think about floating types).
+    fn width(lower: &Self, upper: &Self) -> Self::Output;
 }
 
 macro_rules! unsigned_width_impl
@@ -103,37 +99,37 @@ macro_rules! signed_width_impl
   )*}
 }
 
-unsigned_width_impl!(u8,u16,u32,u64,usize);
-signed_width_impl!(i8,u8,i16,u16,i32,u32,i64,u64,isize,usize);
+unsigned_width_impl!(u8, u16, u32, u64, usize);
+signed_width_impl!(i8, u8, i16, u16, i32, u32, i64, u64, isize, usize);
 
 #[allow(non_upper_case_globals)]
 #[cfg(test)]
 mod tests {
-  use super::*;
-  use gcollections::ops::*;
-  use crate::interval::*;
+    use super::*;
+    use crate::interval::*;
+    use gcollections::ops::*;
 
-  #[test]
-  fn strict_shrink_left() {
-    let empty: Interval<u32> = Interval::empty();
-    let i0_10: Interval<u32> = Interval::new(0, 10);
-    let i2_10: Interval<u32> = Interval::new(2, 10);
+    #[test]
+    fn strict_shrink_left() {
+        let empty: Interval<u32> = Interval::empty();
+        let i0_10: Interval<u32> = Interval::new(0, 10);
+        let i2_10: Interval<u32> = Interval::new(2, 10);
 
-    let ub = u32::max_value();
-    assert_eq!(i0_10.strict_shrink_left(ub), empty);
-    assert_eq!(i0_10.strict_shrink_left(10u32), empty);
-    assert_eq!(i0_10.strict_shrink_left(1u32), i2_10);
-  }
+        let ub = u32::max_value();
+        assert_eq!(i0_10.strict_shrink_left(ub), empty);
+        assert_eq!(i0_10.strict_shrink_left(10u32), empty);
+        assert_eq!(i0_10.strict_shrink_left(1u32), i2_10);
+    }
 
-  #[test]
-  fn strict_shrink_right() {
-    let empty: Interval<u32> = Interval::empty();
-    let i0_10: Interval<u32> = Interval::new(0, 10);
-    let i0_8: Interval<u32> = Interval::new(0, 8);
+    #[test]
+    fn strict_shrink_right() {
+        let empty: Interval<u32> = Interval::empty();
+        let i0_10: Interval<u32> = Interval::new(0, 10);
+        let i0_8: Interval<u32> = Interval::new(0, 8);
 
-    let lb = u32::min_value();
-    assert_eq!(i0_10.strict_shrink_right(lb), empty);
-    assert_eq!(i0_10.strict_shrink_right(0u32), empty);
-    assert_eq!(i0_10.strict_shrink_right(9u32), i0_8);
-  }
+        let lb = u32::min_value();
+        assert_eq!(i0_10.strict_shrink_right(lb), empty);
+        assert_eq!(i0_10.strict_shrink_right(0u32), empty);
+        assert_eq!(i0_10.strict_shrink_right(9u32), i0_8);
+    }
 }
