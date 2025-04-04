@@ -13,26 +13,31 @@ use num_integer::Integer;
 use num_traits::Bounded as NumBounded;
 use num_traits::Unsigned;
 
+/// Calculates a new range covering both ranges.
 pub trait Hull<RHS = Self> {
     type Output;
     fn hull(&self, rhs: &RHS) -> Self::Output;
 }
 
+/// Generates a new object with lower and upper bounds.
 pub trait Range: Collection {
     fn new(lb: Self::Item, ub: Self::Item) -> Self;
 }
 
+/// Generates the largest bound that can be represented by the type.
 pub trait Whole {
     fn whole() -> Self;
 }
 
-/// Limit of a bound for which the distance between `min_value()` and `max_value()` can be represented in the type `Output`.
+/// Limits of a bound for which the distance between `min_value()` and `max_value()` can be represented in the type `Output`.
 pub trait Width: Ord + Clone {
     type Output: Unsigned + Integer + Clone;
 
-    fn max_value() -> Self;
+    /// Smallest value representable by the range.
     fn min_value() -> Self;
-    /// The result might be infinite depending on the underlying type (think about floating types).
+    /// Largest value representable by the range.
+    fn max_value() -> Self;
+    /// The result might be infinite depending on the underlying type, for example floating types.
     fn width(lower: &Self, upper: &Self) -> Self::Output;
 }
 
