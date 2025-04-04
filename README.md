@@ -17,6 +17,12 @@ Licensed under either of
  * MIT license ([LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT)
 at your option.
 
-### Contribution
+## Contributing
 
 Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in the work by you shall be dual licensed as above, without any additional terms or conditions.
+
+To ensure consistency with formatting and linting, please, install `pre-commit`:
+```bash
+pip install pre-commit
+pre-commit install
+```
