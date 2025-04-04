@@ -15,10 +15,10 @@
 //! use gcollections::ops::*;
 //!
 //! # fn main() {
-//! let a = vec![(1,2), (6,10)].to_interval_set();
-//! let b = vec![(3,5), (7,7)].to_interval_set();
-//! let a_union_b = vec![(1,5), (6,10)].to_interval_set();
-//! let a_intersect_b = vec![(7,7)].to_interval_set();
+//! let a = [(1,2), (6,10)].to_interval_set();
+//! let b = [(3,5), (7,7)].to_interval_set();
+//! let a_union_b = [(1,5), (6,10)].to_interval_set();
+//! let a_intersect_b = [(7,7)].to_interval_set();
 //!
 //! assert_eq!(a.union(&b), a_union_b);
 //! assert_eq!(a.intersection(&b), a_intersect_b);
@@ -93,6 +93,16 @@ impl<Bound> IntervalSet<Bound>
 where
     Bound: Width + Num,
 {
+    /// Counts the number of intervals contained in the set.
+    /// ```
+    /// # use interval::prelude::*;
+    /// let single_interval_set = IntervalSet::new(0, 1);
+    /// assert_eq!(single_interval_set.interval_count(), 1);
+    /// let double_interval_set = [(3,5), (7,7)].to_interval_set();
+    /// assert_eq!(double_interval_set.interval_count(), 2);
+    /// let empty_interval_set = IntervalSet::<usize>::empty();
+    /// assert_eq!(empty_interval_set.interval_count(), 0);
+    /// ```
     pub fn interval_count(&self) -> usize {
         self.intervals.len()
     }
@@ -100,7 +110,7 @@ where
     fn from_interval(i: Interval<Bound>) -> IntervalSet<Bound> {
         let size = i.size().clone();
         IntervalSet {
-            intervals: vec![i],
+            intervals: [i].to_vec(),
             size,
         }
     }
@@ -272,6 +282,18 @@ impl<Bound> Extend<Interval<Bound>> for IntervalSet<Bound>
 where
     Bound: Width + Num,
 {
+    /// Inserts additional intervals into an interval set.
+    /// ```
+    /// # use interval::prelude::*;
+    /// let mut interval_set = IntervalSet::<u32>::empty();
+    /// assert_eq!(interval_set, Vec::new().to_interval_set());
+    /// interval_set.extend([Interval::new(2, 3), Interval::new(6, 7)]);
+    /// // Now the set contains two disjoint intervals.
+    /// assert_eq!(interval_set, [(2, 3), (6, 7)].to_interval_set());
+    /// // Unify the intervals with the missing items to create a single interval.
+    /// interval_set.extend([Interval::singleton(4), Interval::singleton(5)]);
+    /// assert_eq!(interval_set, [(2, 7)].to_interval_set());
+    /// ```
     fn extend<I>(&mut self, iterable: I)
     where
         I: IntoIterator<Item = Interval<Bound>>,
@@ -290,6 +312,19 @@ impl<Bound> PartialEq<IntervalSet<Bound>> for IntervalSet<Bound>
 where
     Bound: Width + Num,
 {
+    // Checks whether two interval sets are the same.
+    /// ```
+    /// # use interval::prelude::*;
+    /// let single_interval = [(1, 5)].to_interval_set();
+    /// let equivalent_interval = [(1, 2), (2, 5)].to_interval_set();
+    /// assert_eq!(single_interval, equivalent_interval);
+    /// ```
+    /// Empty intervals are the same as each other, but not non-empty intervals.
+    /// ```
+    /// # use interval::prelude::*;
+    /// assert_eq!(IntervalSet::<usize>::empty(), IntervalSet::<usize>::empty());
+    /// assert_ne!(IntervalSet::empty(), [(2, 3), (8, 9)].to_interval_set());
+    /// ```
     fn eq(&self, other: &IntervalSet<Bound>) -> bool {
         if self.size() != other.size() {
             false
@@ -303,8 +338,24 @@ impl<Bound> Range for IntervalSet<Bound>
 where
     Bound: Width + Num,
 {
+    /// Constructs an interval set from a specified interval.
+    /// ```
+    /// # use interval::prelude::*;
+    /// let interval = IntervalSet::new(2, 4);
+    /// assert!(interval.contains(&2));
+    /// assert!(interval.contains(&3));
+    /// assert!(interval.contains(&4));
+    ///
+    /// assert!(!interval.contains(&1));
+    /// assert!(!interval.contains(&5));
+    /// ```
+    /// Constructing an empty interval set is done via the [IntervalSet::empty()] method.
+    /// ```
+    /// # use interval::prelude::*;
+    /// let empty_interval = IntervalSet::<u16>::empty();
+    /// ```
     fn new(lb: Bound, ub: Bound) -> IntervalSet<Bound> {
-        debug_assert!(lb <= ub, "Cannot build empty interval set with an invalid range. use crate::intervalSet::empty().");
+        debug_assert!(lb <= ub, "Cannot build empty interval set with an invalid range. use crate::IntervalSet::empty().");
         let i = Interval::new(lb, ub);
         IntervalSet::from_interval(i)
     }
@@ -314,6 +365,17 @@ impl<Bound> Whole for IntervalSet<Bound>
 where
     Bound: Width + Num,
 {
+    /// Constructs an interval set using the entire range an interval can represent.
+    /// The bounds of the interval set are bounded in the same way as [`Interval::whole`].
+    /// This is different for unsigned and signed integers:
+    /// ```
+    /// # use interval::prelude::*;
+    /// let unsigned_interval = IntervalSet::<u8>::whole();
+    /// assert_eq!(unsigned_interval, IntervalSet::new(0, 254));
+    ///
+    /// let signed_interval = IntervalSet::<i8>::whole();
+    /// assert_eq!(signed_interval, IntervalSet::new(-127, 127));
+    /// ```
     fn whole() -> IntervalSet<Bound> {
         let mut res = IntervalSet::empty();
         res.push(Interval::whole());
@@ -325,6 +387,18 @@ impl<Bound> Bounded for IntervalSet<Bound>
 where
     Bound: Width + Num + PartialOrd,
 {
+    /// Returns the smallest value contained in an interval set.
+    /// ```
+    /// # use interval::prelude::*;
+    /// assert_eq!([(8, 20)].to_interval_set().lower(), 8);
+    /// assert_eq!([(-5, 11), (10, 30)].to_interval_set().lower(), -5);
+    /// assert_eq!(IntervalSet::singleton(7).lower(), 7);
+    /// ```
+    /// However, this will panic on an empty interval.
+    /// ```should_panic
+    /// # use interval::prelude::*;
+    /// IntervalSet::<u8>::empty().lower(); // panics!
+    /// ```
     fn lower(&self) -> Bound {
         debug_assert!(
             !self.is_empty(),
@@ -333,6 +407,18 @@ where
         self.front().lower()
     }
 
+    /// Returns the largest value contained in an interval set.
+    /// ```
+    /// # use interval::prelude::*;
+    /// assert_eq!([(8, 20)].to_interval_set().upper(), 20);
+    /// assert_eq!([(-5, 11), (10, 30)].to_interval_set().upper(), 30);
+    /// assert_eq!(IntervalSet::singleton(7).upper(), 7);
+    /// ```
+    /// However, this will panic on an empty interval.
+    /// ```should_panic
+    /// # use interval::prelude::*;
+    /// IntervalSet::<u8>::empty().upper(); // panics!
+    /// ```
     fn upper(&self) -> Bound {
         debug_assert!(
             !self.is_empty(),
@@ -343,15 +429,33 @@ where
 }
 
 impl<Bound: Width + Num> Singleton for IntervalSet<Bound> {
+    /// Constructs an interval set containing a single value.
+    /// This set contains a single interval with the same upper and lower bounds.
+    /// ```
+    /// # use interval::prelude::*;
+    /// let interval_set_5 = IntervalSet::singleton(5);
+    /// assert_eq!(interval_set_5.size(), 1 as u32);
+    /// assert_eq!(interval_set_5.lower(), interval_set_5.upper());
+    /// assert!(interval_set_5.contains(&5));
+    /// assert!(!interval_set_5.is_empty());
+    /// ```
     fn singleton(x: Bound) -> IntervalSet<Bound> {
         IntervalSet::new(x.clone(), x)
     }
 }
 
 impl<Bound: Width + Num> Empty for IntervalSet<Bound> {
+    /// Constructs an empty interval set.
+    /// The type needs to be specified or inferred as `Interval` is parametrized by its input.
+    /// ```
+    /// # use interval::prelude::*;
+    /// assert_eq!(IntervalSet::<i32>::empty().size(), 0);
+    /// assert_eq!(IntervalSet::<u32>::empty().size(), 0);
+    /// assert!(IntervalSet::<u16>::empty().is_empty());
+    /// ```
     fn empty() -> IntervalSet<Bound> {
         IntervalSet {
-            intervals: vec![],
+            intervals: Vec::new(),
             size: <<Bound as Width>::Output>::zero(),
         }
     }
@@ -361,12 +465,41 @@ impl<Bound: Width + Num> Empty for IntervalSet<Bound> {
 impl<Bound: Width + Num> Cardinality for IntervalSet<Bound> {
     type Size = <Bound as Width>::Output;
 
+    /// Calculates the size of an interval set (the number of integers it contains).
+    /// This includes the endpoints of all intervals.
+    /// The size of the interval set is unsigned, but has the same number of bits as the interval bounds.
+    /// ```
+    /// # use interval::prelude::*;
+    /// assert_eq!(IntervalSet::<i32>::singleton(8).size(), 1 as u32);
+    /// assert_eq!(IntervalSet::<usize>::new(1, 10).size(), 10 as usize);
+    /// // Default is to use i32.
+    /// assert_eq!([(3, 5), (8, 9)].to_interval_set().size(), (3 + 2) as u32);
+    /// assert_eq!(IntervalSet::<i64>::empty().size(), 0);
+    /// // Doesn't overflow:
+    /// assert_eq!(IntervalSet::<usize>::whole().size(), usize::max_value());
+    /// ```
     fn size(&self) -> <Bound as Width>::Output {
         self.size.clone()
     }
 }
 
 impl<Bound: Width + Num> Contains for IntervalSet<Bound> {
+    /// Calculates whether an interval contains a value.
+    /// ```
+    /// # use interval::prelude::*;
+    /// let interval_set = [(3, 5), (8, 9)].to_interval_set();
+    /// assert!(interval_set.contains(&3));
+    /// assert!(interval_set.contains(&4));
+    /// assert!(interval_set.contains(&5));
+    /// assert!(interval_set.contains(&8));
+    /// assert!(interval_set.contains(&9));
+    ///
+    /// assert!(!interval_set.contains(&1));
+    /// assert!(!interval_set.contains(&2));
+    /// assert!(!interval_set.contains(&6));
+    /// assert!(!interval_set.contains(&7));
+    /// assert!(!interval_set.contains(&10));
+    /// ```
     fn contains(&self, value: &Bound) -> bool {
         if let Some((left, right)) = self.find_interval(value) {
             left == right
@@ -431,6 +564,22 @@ where
 {
     type Output = IntervalSet<Bound>;
 
+    /// Adds a value to the interval set.
+    /// The value does not have to below to an existing interval,
+    /// but if it does, those intervals will be merged.
+    /// ```
+    /// # use interval::prelude::*;
+    /// let interval_set = [(1, 4), (6, 7)].to_interval_set();
+    /// assert_eq!(interval_set.union(&10), [(1, 4), (6, 7), (10, 10)].to_interval_set());
+    ///
+    /// assert_eq!(interval_set.union(&3), interval_set);
+    /// assert_eq!(interval_set.union(&6), interval_set);
+    ///
+    /// assert_eq!(interval_set.union(&0), [(0, 4), (6, 7)].to_interval_set());
+    /// assert_eq!(interval_set.union(&8), [(1, 4), (6, 8)].to_interval_set());
+    ///
+    /// assert_eq!(interval_set.union(&5), [(1, 7)].to_interval_set());
+    /// ```
     fn union(&self, rhs: &Bound) -> IntervalSet<Bound> {
         self.union(&IntervalSet::singleton(rhs.clone()))
     }
@@ -439,6 +588,14 @@ where
 impl<Bound: Width + Num> Union for IntervalSet<Bound> {
     type Output = IntervalSet<Bound>;
 
+    /// Calculates the union of two interval sets.
+    /// This returns an interval set containing all the values in the two that were unified.
+    /// ```
+    /// # use interval::prelude::*;
+    /// let a = [(1, 3), (8, 8), (10, 11)].to_interval_set();
+    /// let b = [(2, 5), (7, 8), (12, 15)].to_interval_set();
+    /// assert_eq!(a.union(&b), [(1, 5), (7, 8), (10, 15)].to_interval_set());
+    /// ```
     fn union(&self, rhs: &IntervalSet<Bound>) -> IntervalSet<Bound> {
         let a = &mut self.intervals.iter().cloned().peekable();
         let b = &mut rhs.intervals.iter().cloned().peekable();
@@ -482,6 +639,17 @@ where
 {
     type Output = IntervalSet<Bound>;
 
+    /// Calculates whether a value is contained in an interval.
+    /// Returns the value as an interval set if it is in the interval
+    /// and an empty interval set if not.
+    /// ```
+    /// # use interval::prelude::*;
+    /// let interval_set = [(1, 4), (6, 7)].to_interval_set();
+    /// assert_eq!(interval_set.intersection(&10), IntervalSet::empty());
+    ///
+    /// assert_eq!(interval_set.intersection(&3), IntervalSet::singleton(3));
+    /// assert_eq!(interval_set.intersection(&6), IntervalSet::singleton(6));
+    /// ```
     fn intersection(&self, rhs: &Bound) -> IntervalSet<Bound> {
         self.intersection(&IntervalSet::singleton(rhs.clone()))
     }
@@ -490,6 +658,14 @@ where
 impl<Bound: Width + Num> Intersection for IntervalSet<Bound> {
     type Output = IntervalSet<Bound>;
 
+    /// Calculates the intersection of two interval sets.
+    /// This returns an interval set containing all the values in the both.
+    /// ```
+    /// # use interval::prelude::*;
+    /// let a = [(1, 3), (8, 8), (10, 11)].to_interval_set();
+    /// let b = [(2, 5), (7, 8), (12, 15)].to_interval_set();
+    /// assert_eq!(a.intersection(&b), [(2, 3), (8, 8)].to_interval_set());
+    /// ```
     fn intersection(&self, rhs: &IntervalSet<Bound>) -> IntervalSet<Bound> {
         let a = &mut self.intervals.iter().cloned().peekable();
         let b = &mut rhs.intervals.iter().cloned().peekable();
@@ -521,6 +697,17 @@ fn push_right_complement<Bound: Width + Num>(x: &Interval<Bound>, res: &mut Inte
 }
 
 impl<Bound: Width + Num> Complement for IntervalSet<Bound> {
+    /// Calculates all values that are excluded from the interval set.
+    /// Positive and negative infinity are represented with `Interval::whole().lower()` and `Interval::whole().upper()`;
+    /// ```
+    /// # use interval::prelude::*;
+    /// assert_eq!(IntervalSet::<i64>::empty().complement(), IntervalSet::whole());
+    ///
+    /// let neg_inf = IntervalSet::<i32>::whole().lower();
+    /// let pos_inf = IntervalSet::<i32>::whole().upper();
+    /// assert_eq!(IntervalSet::singleton(5).complement(), [(neg_inf, 4), (6, pos_inf)].to_interval_set());
+    /// assert_eq!([(2, 5), (8, 10)].to_interval_set().complement(), [(neg_inf, 1), (6, 7), (11, pos_inf)].to_interval_set());
+    /// ```
     fn complement(&self) -> IntervalSet<Bound> {
         let mut res = IntervalSet::empty();
         if self.is_empty() {
@@ -548,6 +735,15 @@ where
 {
     type Output = IntervalSet<Bound>;
 
+    /// Calculates the interval set after removing a single value.
+    /// This returns the original interval set if the value is not in the interval set.
+    /// ```
+    /// # use interval::prelude::*;
+    /// let interval_set = [(1, 3), (5, 9)].to_interval_set();
+    /// assert_eq!(interval_set.difference(&4), interval_set);
+    /// assert_eq!(interval_set.difference(&5), [(1, 3), (6, 9)].to_interval_set());
+    /// assert_eq!(interval_set.difference(&7), [(1, 3), (5, 6), (8, 9)].to_interval_set());
+    /// ```
     fn difference(&self, rhs: &Bound) -> IntervalSet<Bound> {
         self.difference(&IntervalSet::singleton(rhs.clone()))
     }
@@ -556,6 +752,16 @@ where
 impl<Bound: Width + Num> Difference for IntervalSet<Bound> {
     type Output = IntervalSet<Bound>;
 
+    /// Calculates the interval set containing all items in the left set,
+    /// but not in the right set.
+    /// The difference is not symmetric.
+    /// ```
+    /// # use interval::prelude::*;
+    /// let a = [(1, 3), (8, 8), (10, 11)].to_interval_set();
+    /// let b = [(2, 5), (7, 8), (12, 15)].to_interval_set();
+    /// assert_eq!(a.difference(&b), [(1, 1), (10, 11)].to_interval_set());
+    /// assert_eq!(b.difference(&a), [(4, 5), (7, 7), (12, 15)].to_interval_set());
+    /// ```
     fn difference(&self, rhs: &IntervalSet<Bound>) -> IntervalSet<Bound> {
         self.intersection(&rhs.complement())
     }
@@ -567,6 +773,17 @@ where
 {
     type Output = IntervalSet<Bound>;
 
+    /// If the value is in the interval set, this return the interval set without the value.
+    /// If the value is not in the interval set, this returns the interval set extended with the value.
+    /// ```
+    /// # use interval::prelude::*;
+    /// let interval_set = [(1, 3), (5, 9)].to_interval_set();
+    /// assert_eq!(interval_set.symmetric_difference(&4), [(1, 9)].to_interval_set());
+    /// assert_eq!(interval_set.symmetric_difference(&4), interval_set.union(&4));
+
+    /// assert_eq!(interval_set.symmetric_difference(&5), [(1, 3), (6, 9)].to_interval_set());
+    /// assert_eq!(interval_set.symmetric_difference(&5), interval_set.difference(&5));
+    /// ```
     fn symmetric_difference(&self, rhs: &Bound) -> IntervalSet<Bound> {
         self.symmetric_difference(&IntervalSet::singleton(rhs.clone()))
     }
@@ -575,6 +792,18 @@ where
 impl<Bound: Width + Num> SymmetricDifference for IntervalSet<Bound> {
     type Output = IntervalSet<Bound>;
 
+    /// Calculates the interval set containing that are in either the left set or the right set,
+    /// but not both.
+    /// ```
+    /// # use interval::prelude::*;
+    /// let a = [(1, 3), (8, 8), (10, 11)].to_interval_set();
+    /// let b = [(2, 5), (7, 8), (12, 15)].to_interval_set();
+    /// let symmetric_difference = [(1, 1), (4, 5), (7, 7), (10, 15)].to_interval_set();
+    /// assert_eq!(a.symmetric_difference(&b), symmetric_difference);
+    /// assert_eq!(b.symmetric_difference(&a), symmetric_difference);
+    ///
+    /// assert_eq!(IntervalSet::union(&a.difference(&b), &b.difference(&a)), symmetric_difference);
+    /// ```
     fn symmetric_difference(&self, rhs: &IntervalSet<Bound>) -> IntervalSet<Bound> {
         let union = self.union(rhs);
         let intersection = self.intersection(rhs);
@@ -583,6 +812,19 @@ impl<Bound: Width + Num> SymmetricDifference for IntervalSet<Bound> {
 }
 
 impl<Bound: Width + Num> Overlap for IntervalSet<Bound> {
+    /// Calculates whether two interval contain any shared values.
+    /// ```
+    /// # use interval::prelude::*;
+    /// let a = [(1, 3), (7, 8)].to_interval_set();
+    /// let b = [(4, 6)].to_interval_set();
+    /// assert!(!a.overlap(&b));
+    /// assert!(!b.overlap(&a));
+    ///
+    /// let a = [(1, 3)].to_interval_set();
+    /// let b = [(3, 4), (8, 10)].to_interval_set();
+    /// assert!(a.overlap(&b));
+    /// assert!(b.overlap(&a));
+    /// ```
     fn overlap(&self, rhs: &IntervalSet<Bound>) -> bool {
         let a = &mut self.intervals.iter().cloned().peekable();
         let b = &mut rhs.intervals.iter().cloned().peekable();
@@ -591,6 +833,19 @@ impl<Bound: Width + Num> Overlap for IntervalSet<Bound> {
 }
 
 impl<Bound: Width + Num> Overlap<Bound> for IntervalSet<Bound> {
+    /// Calculates whether a value is included in the interval set.
+    /// This returns the same result as the [`IntervalSet::contains`]
+    /// ```
+    /// # use interval::prelude::*;
+    /// let interval_set = [(3, 5), (8, 9)].to_interval_set();
+    /// assert!(interval_set.overlap(&3));
+    /// assert!(interval_set.overlap(&8));
+    /// assert!(interval_set.overlap(&9));
+    ///
+    /// assert!(!interval_set.overlap(&1));
+    /// assert!(!interval_set.overlap(&7));
+    /// assert!(!interval_set.overlap(&10));
+    /// ```
     fn overlap(&self, value: &Bound) -> bool {
         if let Some((l, u)) = self.find_interval(value) {
             l == u
@@ -601,6 +856,20 @@ impl<Bound: Width + Num> Overlap<Bound> for IntervalSet<Bound> {
 }
 
 impl<Bound: Width + Num> Overlap<Optional<Bound>> for IntervalSet<Bound> {
+    /// Calculates whether an optional value is included in the interval set.
+    /// If the optional empty, this returns false.
+    /// This returns the same result as the [`IntervalSet::contains`]
+    /// ```
+    /// # use interval::prelude::*;
+    /// let interval_set = [(3, 5), (8, 9)].to_interval_set();
+    /// assert!(interval_set.overlap(&Optional::singleton(3)));
+    /// assert!(interval_set.overlap(&Optional::singleton(9)));
+    ///
+    /// assert!(!interval_set.overlap(&Optional::singleton(1)));
+    /// assert!(!interval_set.overlap(&Optional::singleton(10)));
+    ///
+    /// assert!(!interval_set.overlap(&Optional::empty()));
+    /// ```
     fn overlap(&self, value: &Optional<Bound>) -> bool {
         value.as_ref().map_or(false, |b| self.overlap(b))
     }
@@ -611,6 +880,22 @@ macro_rules! primitive_interval_set_overlap
   ( $( $source:ty ),* ) =>
   {$(
     impl Overlap<IntervalSet<$source>> for $source {
+      #[doc = concat!(
+        r#"
+        Calculates whether a value is included in an interval set.
+        ```
+        # use interval::prelude::*;
+        let interval_set: IntervalSet<"#, stringify!($source), r#"> = [(3, 5), (8, 9)].to_interval_set();
+        assert!((3 as "#, stringify!($source), r#").overlap(&interval_set));
+        assert!((8 as "#, stringify!($source), r#").overlap(&interval_set));
+        assert!((9 as "#, stringify!($source), r#").overlap(&interval_set));
+        ///
+        assert!(!(1 as "#, stringify!($source), r#").overlap(&interval_set));
+        assert!(!(7 as "#, stringify!($source), r#").overlap(&interval_set));
+        assert!(!(10 as "#, stringify!($source), r#").overlap(&interval_set));
+        ```
+        "#
+      )]
       fn overlap(&self, other: &IntervalSet<$source>) -> bool {
         other.overlap(self)
       }
@@ -621,6 +906,19 @@ macro_rules! primitive_interval_set_overlap
 primitive_interval_set_overlap!(i8, u8, i16, u16, i32, u32, i64, u64, isize, usize);
 
 impl<Bound: Width + Num> Disjoint for IntervalSet<Bound> {
+    /// Calculates whether two interval do *not* contain any shared values.
+    /// ```
+    /// # use interval::prelude::*;
+    /// let a = [(1, 3), (7, 8)].to_interval_set();
+    /// let b = [(4, 6)].to_interval_set();
+    /// assert!(a.is_disjoint(&b));
+    /// assert!(b.is_disjoint(&a));
+    ///
+    /// let a = [(1, 3)].to_interval_set();
+    /// let b = [(3, 4), (8, 10)].to_interval_set();
+    /// assert!(!a.is_disjoint(&b));
+    /// assert!(!b.is_disjoint(&a));
+    /// ```
     fn is_disjoint(&self, rhs: &IntervalSet<Bound>) -> bool {
         !self.overlap(rhs)
     }
@@ -630,6 +928,17 @@ impl<Bound: Width + Num> ShrinkLeft for IntervalSet<Bound>
 where
     <Bound as Width>::Output: Clone,
 {
+    /// Updates the lower bound of an interval set to be greater than or equal to a value.
+    /// ```
+    /// # use interval::prelude::*;
+    /// let interval_set = [(4, 5), (8, 8)].to_interval_set();
+    /// assert_eq!(interval_set.shrink_left(2), interval_set);
+    /// assert_eq!(interval_set.shrink_left(4), interval_set);
+    /// assert_eq!(interval_set.shrink_left(5), [(5, 5), (8, 8)].to_interval_set());
+    /// assert_eq!(interval_set.shrink_left(7), IntervalSet::singleton(8));
+    /// assert_eq!(interval_set.shrink_left(8), IntervalSet::singleton(8));
+    /// assert_eq!(interval_set.shrink_left(9), IntervalSet::empty());
+    /// ```
     fn shrink_left(&self, lb: Bound) -> IntervalSet<Bound> {
         if let Some((left, _)) = self.find_interval(&lb) {
             let mut res = IntervalSet::empty();
@@ -652,6 +961,17 @@ impl<Bound: Width + Num> ShrinkRight for IntervalSet<Bound>
 where
     <Bound as Width>::Output: Clone,
 {
+    /// Updates the upper bound of an interval set to be less than or equal to a value.
+    /// ```
+    /// # use interval::prelude::*;
+    /// let interval_set = [(3, 3), (7, 8)].to_interval_set();
+    /// assert_eq!(interval_set.shrink_right(9), interval_set);
+    /// assert_eq!(interval_set.shrink_right(8), interval_set);
+    /// assert_eq!(interval_set.shrink_right(7), [(3, 3), (7, 7)].to_interval_set());
+    /// assert_eq!(interval_set.shrink_right(6), IntervalSet::singleton(3));
+    /// assert_eq!(interval_set.shrink_right(3), IntervalSet::singleton(3));
+    /// assert_eq!(interval_set.shrink_right(2), IntervalSet::empty());
+    /// ```
     fn shrink_right(&self, ub: Bound) -> IntervalSet<Bound> {
         if let Some((_, right)) = self.find_interval(&ub) {
             let mut res = IntervalSet::empty();
@@ -671,6 +991,22 @@ where
 }
 
 impl<Bound: Width + Num> Subset for IntervalSet<Bound> {
+    /// Calculates whether one interval set is contained in another.
+    /// The empty interval set is a subset of everything.
+    /// ```
+    /// # use interval::prelude::*;
+    /// let interval_set = [(3, 3), (7, 8)].to_interval_set();
+    /// assert!(interval_set.is_subset(&[(3, 8)].to_interval_set()));
+    /// assert!(interval_set.is_subset(&[(3, 4), (7, 9)].to_interval_set()));
+    /// assert!(interval_set.is_subset(&interval_set));
+    ///
+    /// assert!(!interval_set.is_subset(&[(3, 3)].to_interval_set()));
+    /// assert!(!interval_set.is_subset(&[(7, 9)].to_interval_set()));
+    /// assert!(!interval_set.is_subset(&[(3, 3), (8, 9)].to_interval_set()));
+    ///
+    /// assert!(IntervalSet::<usize>::empty().is_subset(&IntervalSet::empty()));
+    /// assert!(IntervalSet::empty().is_subset(&interval_set));
+    /// ```
     fn is_subset(&self, other: &IntervalSet<Bound>) -> bool {
         if self.is_empty() {
             true
@@ -693,6 +1029,23 @@ impl<Bound: Width + Num> Subset for IntervalSet<Bound> {
 }
 
 impl<Bound: Width + Num> ProperSubset for IntervalSet<Bound> {
+    /// Calculates whether one interval set is contained in another,
+    /// but they are not equal.
+    /// The empty interval set is a proper subset of everything, except itself.
+    /// ```
+    /// # use interval::prelude::*;
+    /// let interval_set = [(3, 3), (7, 8)].to_interval_set();
+    /// assert!(interval_set.is_proper_subset(&[(3, 8)].to_interval_set()));
+    /// assert!(interval_set.is_proper_subset(&[(3, 4), (7, 9)].to_interval_set()));
+    ///
+    /// assert!(!interval_set.is_proper_subset(&interval_set));
+    /// assert!(!interval_set.is_proper_subset(&[(3, 3)].to_interval_set()));
+    /// assert!(!interval_set.is_proper_subset(&[(7, 9)].to_interval_set()));
+    /// assert!(!interval_set.is_proper_subset(&[(3, 3), (8, 9)].to_interval_set()));
+    ///
+    /// assert!(IntervalSet::empty().is_proper_subset(&interval_set));
+    /// assert!(!IntervalSet::<usize>::empty().is_proper_subset(&IntervalSet::empty()));
+    /// ```
     fn is_proper_subset(&self, other: &IntervalSet<Bound>) -> bool {
         self.is_subset(other) && self.size() != other.size()
     }
@@ -703,6 +1056,20 @@ forward_all_binop!(impl<Bound: +Num+Width> Add for IntervalSet<Bound>, add);
 impl<'a, 'b, Bound: Num + Width> Add<&'b IntervalSet<Bound>> for &'a IntervalSet<Bound> {
     type Output = IntervalSet<Bound>;
 
+    /// Calculates all values that could result in the addition of two items from each interval set.
+    /// ```
+    /// # use interval::prelude::*;
+    /// let a = [(1, 2), (5, 6)].to_interval_set();
+    /// let b = [(1, 1), (4, 5)].to_interval_set();
+    /// assert_eq!(a + b, [(2, 3), (5, 7), (9, 11)].to_interval_set());
+    /// ```
+    /// This method preserves empty interval sets.
+    /// ```
+    /// # use interval::prelude::*;
+    /// let a = [(1, 1), (4, 5)].to_interval_set();
+    /// let b = IntervalSet::empty();
+    /// assert!((a + b).is_empty());
+    /// ```
     fn add(self, other: &IntervalSet<Bound>) -> IntervalSet<Bound> {
         self.for_all_pairs(other, |i, j| i + j)
     }
@@ -713,6 +1080,21 @@ forward_all_binop!(impl<Bound: +Num+Width+Clone> Add for IntervalSet<Bound>, add
 impl<'a, 'b, Bound: Num + Width + Clone> Add<&'b Bound> for &'a IntervalSet<Bound> {
     type Output = IntervalSet<Bound>;
 
+    /// Adds a constant to an interval set.
+    /// ```
+    /// # use interval::prelude::*;
+    /// assert_eq!([(3, 3), (7, 8)].to_interval_set() + 2, [(5, 5), (9, 10)].to_interval_set());
+    /// ```
+    /// This method preserves empty interval sets.
+    /// ```
+    /// # use interval::prelude::*;
+    /// assert!((IntervalSet::empty() + 4).is_empty());
+    /// ```
+    /// It is not possible to add an interval set to a constant.
+    /// ```compile_fail
+    /// # use interval::prelude::*;
+    /// let _ = 4 + IntervalSet::new(5, 9); // doesn't compile
+    /// ```
     fn add(self, other: &Bound) -> IntervalSet<Bound> {
         self.stable_map(|x| x + other.clone())
     }
@@ -733,6 +1115,21 @@ forward_all_binop!(impl<Bound: +Num+Width+Clone> Sub for IntervalSet<Bound>, sub
 impl<'a, 'b, Bound: Num + Width + Clone> Sub<&'b Bound> for &'a IntervalSet<Bound> {
     type Output = IntervalSet<Bound>;
 
+    /// Subtracts a constant from an interval set.
+    /// ```
+    /// # use interval::prelude::*;
+    /// assert_eq!([(3, 3), (7, 8)].to_interval_set() - 2, [(1, 1), (5, 6)].to_interval_set());
+    /// ```
+    /// This method preserves empty interval sets.
+    /// ```
+    /// # use interval::prelude::*;
+    /// assert!((IntervalSet::empty() - 4).is_empty());
+    /// ```
+    /// It is not possible to substract an interval set from a constant.
+    /// ```compile_fail
+    /// # use interval::prelude::*;
+    /// let _ = 10 - IntervalSet::new(5, 9); // doesn't compile
+    /// ```
     fn sub(self, other: &Bound) -> IntervalSet<Bound> {
         self.stable_map(|x| x - other.clone())
     }
@@ -743,7 +1140,19 @@ forward_all_binop!(impl<Bound: +Num+Width> Mul for IntervalSet<Bound>, mul);
 impl<'a, 'b, Bound: Num + Width> Mul<&'b IntervalSet<Bound>> for &'a IntervalSet<Bound> {
     type Output = IntervalSet<Bound>;
 
-    // Caution: This is an over-approximation. For the same reason as `Interval::mul`.
+    /// Calculates all values that could result in the multiplication of two items from each interval set.
+    /// Caution: the resulting interval set is an over-approxmation for the same reason as [`Interval::mul`](../interval/struct.Interval.html#method.mul-3).
+    /// ```
+    /// # use interval::prelude::*;
+    /// let a = [(1, 2), (5, 6)].to_interval_set();
+    /// let b = [(0, 0), (3, 4)].to_interval_set();
+    /// assert_eq!(a * b, [(0, 0), (3, 8), (15, 24)].to_interval_set());
+    /// ```
+    /// This method preserves empty interval sets.
+    /// ```
+    /// # use interval::prelude::*;
+    /// assert!((IntervalSet::empty() * [(0, 0), (3, 4)].to_interval_set()).is_empty());
+    /// ```
     fn mul(self, other: &IntervalSet<Bound>) -> IntervalSet<Bound> {
         self.for_all_pairs(other, |i, j| i * j)
     }
@@ -754,7 +1163,22 @@ forward_all_binop!(impl<Bound: +Num+Width+Clone> Mul for IntervalSet<Bound>, mul
 impl<'a, 'b, Bound: Num + Width + Clone> Mul<&'b Bound> for &'a IntervalSet<Bound> {
     type Output = IntervalSet<Bound>;
 
-    // Caution: This is an over-approximation. For the same reason as `Interval::mul`.
+    /// Multiplies an interval set by a constant.
+    /// Caution: the resulting interval set is an over-approxmation for the same reason as [`Interval::mul`](../interval/struct.Interval.html#method.mul-7).
+    /// ```
+    /// # use interval::prelude::*;
+    /// assert_eq!([(1, 2), (5, 6)].to_interval_set() * 2, [(2, 4), (10, 12)].to_interval_set());
+    /// ```
+    /// This method preserves empty interval sets.
+    /// ```
+    /// # use interval::prelude::*;
+    /// assert!((IntervalSet::empty() * 11).is_empty());
+    /// ```
+    /// It is not possible to multiply a constant by an interval set.
+    /// ```compile_fail
+    /// # use interval::prelude::*;
+    /// let _ = 4 * IntervalSet::new(5, 9); // doesn't compile
+    /// ```
     fn mul(self, other: &Bound) -> IntervalSet<Bound> {
         if self.is_empty() {
             IntervalSet::empty()
@@ -772,12 +1196,30 @@ pub trait ToIntervalSet<Bound>
 where
     Bound: Width,
 {
+    /// Converts a value to an interval set.
+    /// For example,
+    /// ```
+    /// # use interval::prelude::*;
+    /// assert_eq!((3, 4).to_interval_set(), IntervalSet::new(3, 4));
+    /// assert_eq!([(2, 5), (7, 8)].to_interval_set(), IntervalSet::union(&IntervalSet::new(2, 5), &IntervalSet::new(7, 8)));
+    /// ```
     fn to_interval_set(self) -> IntervalSet<Bound>;
 }
 
 impl<Bound: Width + Num> ToIntervalSet<Bound> for (Bound, Bound) {
+    /// Converts a tuple to an interval set using the first element as the lower bound
+    /// and second element as the upper bound.
+    /// ```
+    /// # use interval::prelude::*;
+    /// assert_eq!((2, 6).to_interval_set(), IntervalSet::new(2, 6));
+    /// ```
+    /// The first and second elements need the same type.
+    /// ```compile_fail
+    /// # use interval::prelude::*;
+    /// let _ = (8 as u8, 9 as i8).to_interval_set(); // doesn't compile
+    /// ```
     fn to_interval_set(self) -> IntervalSet<Bound> {
-        vec![self].to_interval_set()
+        [self].to_interval_set()
     }
 }
 
@@ -785,6 +1227,13 @@ impl<Bound> ToIntervalSet<Bound> for Vec<(Bound, Bound)>
 where
     Bound: Width + Num,
 {
+    /// Converts a vector of intervals to an interval set.
+    /// ```
+    /// # use interval::prelude::*;
+    /// assert_eq!(vec![(2, 5)].to_interval_set().interval_count(), 1);
+    /// assert_eq!(vec![(1, 5), (11, 20)].to_interval_set().interval_count(), 2);
+    /// assert!(Vec::<(usize, usize)>::new().to_interval_set().is_empty());
+    /// ```
     fn to_interval_set(self) -> IntervalSet<Bound> {
         let mut intervals = IntervalSet::empty();
         let mut to_add: Vec<_> = self.into_iter().map(|i| i.to_interval()).collect();
@@ -794,10 +1243,53 @@ where
     }
 }
 
+impl<Bound> ToIntervalSet<Bound> for &[(Bound, Bound)]
+where
+    Bound: Width + Num + Copy,
+{
+    /// Converts an array to an interval set.
+    /// ```
+    /// # use interval::prelude::*;
+    /// assert_eq!([(2, 5)].to_interval_set().interval_count(), 1);
+    /// assert_eq!([(1, 5), (11, 20)].to_interval_set().interval_count(), 2);
+    /// assert!(<&[(usize, usize)]>::default().to_interval_set().is_empty());
+    /// ```
+    fn to_interval_set(self) -> IntervalSet<Bound> {
+        self.to_vec().to_interval_set()
+    }
+}
+
+impl<Bound, const N: usize> ToIntervalSet<Bound> for [(Bound, Bound); N]
+where
+    Bound: Width + Num + Clone,
+{
+    /// Converts a fixed-length array to an interval set.
+    /// ```
+    /// # use interval::prelude::*;
+    /// assert_eq!([(2, 5)].to_interval_set().interval_count(), 1);
+    /// assert_eq!([(1, 5), (11, 20)].to_interval_set().interval_count(), 2);
+    /// assert!(([] as [(usize, usize); 0]).to_interval_set().is_empty());
+    /// ```
+    fn to_interval_set(self) -> IntervalSet<Bound> {
+        self.to_vec().to_interval_set()
+    }
+}
+
 impl<Bound: Display + Width + Num> Display for IntervalSet<Bound>
 where
     <Bound as Width>::Output: Display,
 {
+    /// Formats an interval set.
+    /// Empty interval sets are displayed as the empty set "{}".
+    /// Single intervals are displayed as the isolated interval.
+    /// Combined intervals are displayed as a sorted set of intervals.
+    /// See [`Interval::fmt`](../interval/struct.Interval.html#method.fmt-1) for more detail on how intervals are formatted.
+    /// ```
+    /// # use interval::prelude::*;
+    /// assert_eq!(format!("{}", [(3, 5)].to_interval_set()), "[3..5]");
+    /// assert_eq!(format!("{}", [(4, 4), (8, 9)].to_interval_set()), "{[4..4][8..9]}");
+    /// assert_eq!(format!("{}", IntervalSet::<u32>::empty()), "{}");
+    /// ```
     fn fmt(&self, formatter: &mut Formatter) -> Result<(), Error> {
         if self.intervals.len() == 1 {
             self.intervals[0].fmt(formatter)
@@ -2234,7 +2726,7 @@ mod tests {
     #[test]
     fn test_iterator() {
         let empty = IntervalSet::<i32>::empty();
-        let mut a = vec![(0, 5), (10, 15)].to_interval_set();
+        let mut a = [(0, 5), (10, 15)].to_interval_set();
         let mut iter = a.clone().into_iter();
         assert_eq!(
             iter.next(),

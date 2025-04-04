@@ -243,6 +243,7 @@ where
     /// # use interval::prelude::*;
     /// assert_eq!(Interval::<i32>::empty().size(), 0);
     /// assert_eq!(Interval::<u32>::empty().size(), 0);
+    /// assert!(Interval::<u16>::empty().is_empty());
     /// ```
     fn empty() -> Interval<Bound> {
         Interval::new(Bound::one(), Bound::zero())
@@ -671,8 +672,9 @@ impl<Bound> ProperSubset for Interval<Bound>
 where
     Bound: Width + Num,
 {
-    /// Calculates whether one interval is contained in another but they are not equal.
-    /// The empty interval is a subset of everything, except itself.
+    /// Calculates whether one interval is contained in another,
+    /// but they are not equal.
+    /// The empty interval is a proper subset of everything, except itself.
     /// ```
     /// # use interval::prelude::*;
     /// assert_eq!(Interval::new(1, 4).is_proper_subset(&Interval::new(2, 6)), false);
@@ -716,6 +718,7 @@ where
 {
     type Output = Interval<Bound>;
     /// Calculates whether value is contained in an interval.
+    /// Returns the value if it is in the interval.
     /// ```
     /// # use interval::prelude::*;
     /// assert_eq!(Interval::new(3, 8).intersection(&4), Interval::singleton(4));
@@ -740,6 +743,7 @@ where
     type Output = Interval<Bound>;
 
     /// Calculates whether an optional is contained in an interval.
+    /// Returns the optional if it is in the interval.
     /// ```
     /// # use interval::prelude::*;
     /// assert_eq!(Interval::new(3, 8).intersection(&Optional::singleton(4)), Interval::singleton(4));
@@ -901,7 +905,7 @@ impl<Bound> ShrinkLeft for Interval<Bound>
 where
     Bound: Num + Width,
 {
-    /// Updates the lower bound to be greater than or equal to `lb`.
+    /// Updates the lower bound to be greater than or equal to a value.
     /// ```
     /// use interval::prelude::*;
     /// let a = Interval::new(5, 9);
@@ -928,7 +932,7 @@ impl<Bound> ShrinkRight for Interval<Bound>
 where
     Bound: Num + Width,
 {
-    /// Updates the upper bound to be less than or equal to `ub`.
+    /// Updates the upper bound to be less than or equal to a value.
     /// ```
     /// use interval::prelude::*;
     /// let a = Interval::new(5, 9);
@@ -1155,20 +1159,14 @@ where
     /// assert_eq!(Interval::new(0, 1) * Interval::new(3, 5), Interval::new(0, 5));
     /// ```
     /// The interval produced is the smallest possible interval,
-    /// however, only the values 0 and 3 are possible results of the multiplication.
+    /// however, only the values 0, 3, 4 and 5 are possible results of this multiplication.
     ///
     /// This method preserves empty intervals.
     /// ```
     /// # use interval::prelude::*;
-    /// assert!((Interval::empty() * 4).is_empty());
-    /// ```
-    /// It is not possible to multiply a constant by an interval.
-    /// ```compile_fail
-    /// # use interval::prelude::*;
-    /// let _ = 4 * Interval::new(5, 9); // doesn't compile
+    /// assert!((Interval::empty() * Interval::new(2, 4)).is_empty());
     /// ```
     fn mul(self, other: &Interval<Bound>) -> Interval<Bound> {
-        // Caution: Consider `[0,1] * [3,5]`, the result `[0,5]` is an over-approximation.
         if self.is_empty() || other.is_empty() {
             Interval::empty()
         } else {
@@ -1201,6 +1199,7 @@ where
     /// assert_eq!(Interval::new(0, 1) * 3, Interval::new(0, 3));
     /// ```
     /// The interval produced is the smallest possible interval,
+    /// however, only the values 0 and 3 are possible results of this multiplication.
     ///
     /// This method preserves empty intervals.
     /// ```
@@ -1244,7 +1243,7 @@ where
 }
 
 pub trait ToInterval<Bound> {
-    /// Convert a value to an interval.
+    /// Converts a value to an interval.
     /// For example,
     /// ```
     /// # use interval::prelude::*;
@@ -1271,7 +1270,8 @@ impl<Bound> ToInterval<Bound> for Interval<Bound> {
 }
 
 impl<Bound: Width + Num> ToInterval<Bound> for (Bound, Bound) {
-    /// Converts a tuple to an interval using the first element as the lower bound and second element as the upper bound.
+    /// Converts a tuple to an interval using the first element as the lower bound
+    /// and second element as the upper bound.
     /// ```
     /// # use interval::prelude::*;
     /// assert_eq!((2, 6).to_interval(), Interval::new(2, 6));
@@ -1279,7 +1279,7 @@ impl<Bound: Width + Num> ToInterval<Bound> for (Bound, Bound) {
     /// The first and second elements need the same type.
     /// ```compile_fail
     /// # use interval::prelude::*;
-    /// let _ = (8 as u8, 9 as i8).into_interval(); // doesn't compile
+    /// let _ = (8 as u8, 9 as i8).to_interval(); // doesn't compile
     /// ```
     fn to_interval(self) -> Interval<Bound> {
         let (a, b) = self;
