@@ -29,6 +29,7 @@
 pub mod interval;
 pub mod interval_set;
 pub mod ops;
+pub mod prelude;
 
 pub use crate::interval::Interval;
 pub use crate::interval_set::IntervalSet;

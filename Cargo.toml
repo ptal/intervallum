@@ -1,11 +1,11 @@
 [package]
 
 name = "intervallum"
-version = "1.4.1"
+version = "1.4.2"
 authors = [ "Pierre Talbot <pierre.talbot@uni.lu>" ]
 
 description = "Generic interval and interval set library."
-documentation = "https://docs.rs/intervallum/1.4.1/interval/"
+documentation = "https://docs.rs/intervallum/1.4.2/interval/"
 repository = "https://github.com/ptal/intervallum"
 readme = "README.md"
 keywords = ["interval", "math", "data-structure", "containers", "interval-set"]
