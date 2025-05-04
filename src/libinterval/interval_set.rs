@@ -61,7 +61,11 @@ where
     where
         S: serde::Serializer,
     {
-        serializer.collect_seq(&self.intervals)
+        if self.is_empty() {
+            serializer.serialize_none()
+        } else {
+            serializer.collect_seq(&self.intervals)
+        }
     }
 }
 
@@ -108,8 +112,15 @@ where
                 interval_set.extend(intervals);
                 Ok(interval_set)
             }
+
+            fn visit_none<E>(self) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(IntervalSet::empty())
+            }
         }
-        deserializer.deserialize_seq(IntervalSetVisitor::new())
+        deserializer.deserialize_any(IntervalSetVisitor::new())
     }
 }
 
@@ -2855,5 +2866,10 @@ mod tests {
                 Token::SeqEnd,
             ],
         );
+    }
+
+    #[test]
+    fn test_ser_de_empty_interval_set() {
+        assert_tokens(&IntervalSet::<i32>::empty(), &[Token::None]);
     }
 }
