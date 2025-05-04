@@ -64,7 +64,9 @@ where
     where
         S: Serializer,
     {
-        if self.is_singleton() {
+        if self.is_empty() {
+            serializer.serialize_none()
+        } else if self.is_singleton() {
             self.lb.serialize(serializer)
         } else {
             let mut tuple = serializer.serialize_tuple(2)?;
@@ -77,7 +79,7 @@ where
 
 impl<'de, Bound> Deserialize<'de> for Interval<Bound>
 where
-    Bound: Width + Deserialize<'de> + TryFrom<i64> + TryFrom<u64>,
+    Bound: Width + Num + Deserialize<'de> + TryFrom<i64> + TryFrom<u64>,
     <Bound as TryFrom<i64>>::Error: std::fmt::Display,
     <Bound as TryFrom<u64>>::Error: std::fmt::Display,
 {
@@ -97,15 +99,16 @@ where
         }
         impl<'de, Bound> Visitor<'de> for IntervalVisitor<Bound>
         where
-            Bound: Width + Deserialize<'de> + TryFrom<i64> + TryFrom<u64>,
+            Bound: Width + Deserialize<'de> + Num + TryFrom<i64> + TryFrom<u64>,
             <Bound as TryFrom<i64>>::Error: std::fmt::Display,
             <Bound as TryFrom<u64>>::Error: std::fmt::Display,
         {
             type Value = Interval<Bound>;
 
             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                formatter.write_str("tuple of two integers")
+                formatter.write_str("tuple of two integers or single integer or none")
             }
+
             fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
             where
                 A: SeqAccess<'de>,
@@ -170,6 +173,13 @@ where
                 } else {
                     Ok(Interval::singleton(Bound::from(v)))
                 }
+            }
+
+            fn visit_none<E>(self) -> Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                Ok(Interval::<Bound>::empty())
             }
         }
         deserializer.deserialize_any(IntervalVisitor::<Bound>::new())
@@ -2500,7 +2510,7 @@ mod tests {
                 Token::I32(30),
                 Token::TupleEnd,
             ],
-            "invalid length 3, expected tuple of two integers",
+            "invalid length 3, expected tuple of two integers or single integer or none",
         );
     }
 
@@ -2516,7 +2526,7 @@ mod tests {
                 Token::I32(50),
                 Token::TupleEnd,
             ],
-            "invalid length 5, expected tuple of two integers",
+            "invalid length 5, expected tuple of two integers or single integer or none",
         );
     }
 
@@ -2584,5 +2594,11 @@ mod tests {
             &[Token::U64(u32::MAX as u64)],
             "Upper bound exceeds the maximum value of a bound.",
         );
+    }
+
+    #[test]
+    fn test_ser_de_empty_interval() {
+        let interval = Interval::<i32>::empty();
+        assert_tokens(&interval, &[Token::None]);
     }
 }
