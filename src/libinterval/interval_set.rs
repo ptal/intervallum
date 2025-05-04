@@ -33,8 +33,14 @@ use crate::interval::ToInterval;
 use crate::ops::*;
 use gcollections::ops::*;
 use gcollections::*;
+use serde::de::SeqAccess;
+use serde::de::Visitor;
+use serde::Deserialize;
+use serde::Serialize;
+use std::fmt;
 use std::fmt::{Display, Error, Formatter};
 use std::iter::{IntoIterator, Peekable};
+use std::marker::PhantomData;
 use std::ops::{Add, Mul, Sub};
 use trilean::SKleene;
 
@@ -44,6 +50,67 @@ use num_traits::{Num, Zero};
 pub struct IntervalSet<Bound: Width> {
     intervals: Vec<Interval<Bound>>,
     size: Bound::Output,
+}
+
+impl<Bound> Serialize for IntervalSet<Bound>
+where
+    Bound: Width + Num + Serialize,
+    Interval<Bound>: Serialize,
+{
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.collect_seq(&self.intervals)
+    }
+}
+
+impl<'de, Bound> Deserialize<'de> for IntervalSet<Bound>
+where
+    Bound: Width + Num + Deserialize<'de>,
+{
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        struct IntervalSetVisitor<Bound> {
+            marker: PhantomData<fn() -> Interval<Bound>>,
+        }
+        impl<Bound> IntervalSetVisitor<Bound> {
+            fn new() -> Self {
+                IntervalSetVisitor {
+                    marker: PhantomData,
+                }
+            }
+        }
+        impl<'de, Bound> Visitor<'de> for IntervalSetVisitor<Bound>
+        where
+            Bound: Width + Deserialize<'de> + Num,
+        {
+            type Value = IntervalSet<Bound>;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("sequence of intervals")
+            }
+
+            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+            where
+                A: SeqAccess<'de>,
+            {
+                let mut intervals = Vec::new();
+                if let Some(size) = seq.size_hint() {
+                    intervals.reserve(size);
+                }
+                while let Some(interval) = seq.next_element::<Interval<Bound>>()? {
+                    intervals.push(interval);
+                }
+                let mut interval_set = IntervalSet::empty();
+                interval_set.extend(intervals);
+                Ok(interval_set)
+            }
+        }
+        deserializer.deserialize_seq(IntervalSetVisitor::new())
+    }
 }
 
 impl<Bound: Width> IntervalKind for IntervalSet<Bound> {}
@@ -1357,6 +1424,8 @@ where
 #[allow(non_upper_case_globals)]
 #[cfg(test)]
 mod tests {
+    use serde_test::{assert_tokens, Token};
+
     use super::*;
 
     const extend_example: [(i32, i32); 2] = [(11, 33), (-55, -44)];
@@ -2748,5 +2817,43 @@ mod tests {
                 "test 4 of test_iterator: empty interval must not yield an element."
             );
         }
+    }
+
+    #[test]
+    fn test_ser_de_single_interval_set() {
+        assert_tokens(
+            &IntervalSet::from_interval(Interval::new(8, 12)),
+            &[
+                Token::Seq { len: Some(1) },
+                Token::Tuple { len: 2 },
+                Token::I32(8),
+                Token::I32(12),
+                Token::TupleEnd,
+                Token::SeqEnd,
+            ],
+        );
+    }
+
+    #[test]
+    fn test_ser_de_multiple_interval_set() {
+        assert_tokens(
+            &[(20, 21), (3, 5), (-10, -5)].to_interval_set(),
+            &[
+                Token::Seq { len: Some(3) },
+                Token::Tuple { len: 2 },
+                Token::I32(-10),
+                Token::I32(-5),
+                Token::TupleEnd,
+                Token::Tuple { len: 2 },
+                Token::I32(3),
+                Token::I32(5),
+                Token::TupleEnd,
+                Token::Tuple { len: 2 },
+                Token::I32(20),
+                Token::I32(21),
+                Token::TupleEnd,
+                Token::SeqEnd,
+            ],
+        );
     }
 }
