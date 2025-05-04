@@ -107,10 +107,17 @@ where
                 let upper = seq
                     .next_element::<Bound>()?
                     .ok_or_else(|| de::Error::invalid_length(1, &self))?;
+                let mut extra_elements = 0;
+                while seq.next_element::<de::IgnoredAny>()?.is_some() {
+                    extra_elements += 1;
+                }
+                if extra_elements > 0 {
+                    return Err(de::Error::invalid_length(2 + extra_elements, &self));
+                }
                 Ok(Interval::new(lower, upper))
             }
         }
-        deserializer.deserialize_tuple(2, IntervalVisitor::<Bound>::new())
+        deserializer.deserialize_any(IntervalVisitor::<Bound>::new())
     }
 }
 
@@ -1434,7 +1441,7 @@ where
 #[allow(non_upper_case_globals)]
 #[cfg(test)]
 mod tests {
-    use serde_test::{assert_tokens, Token};
+    use serde_test::{assert_de_tokens, assert_de_tokens_error, assert_tokens, Token};
 
     use super::*;
 
@@ -2411,6 +2418,50 @@ mod tests {
                 Token::I32(20),
                 Token::TupleEnd,
             ],
+        );
+    }
+
+    #[test]
+    fn test_de_interval_mixed_types() {
+        let interval = Interval::new(-5, 15);
+        assert_de_tokens::<Interval<i32>>(
+            &interval,
+            &[
+                Token::Tuple { len: 2 },
+                Token::I32(-5),
+                Token::I64(15),
+                Token::TupleEnd,
+            ],
+        );
+    }
+
+    #[test]
+    fn test_de_interval_extra_token() {
+        assert_de_tokens_error::<Interval<i32>>(
+            &[
+                Token::Tuple { len: 3 },
+                Token::I32(10),
+                Token::I32(20),
+                Token::I32(30),
+                Token::TupleEnd,
+            ],
+            "invalid length 3, expected tuple of two integers",
+        );
+    }
+
+    #[test]
+    fn test_de_interval_extra_tokens() {
+        assert_de_tokens_error::<Interval<i32>>(
+            &[
+                Token::Tuple { len: 5 },
+                Token::I32(10),
+                Token::I32(20),
+                Token::I32(30),
+                Token::I32(40),
+                Token::I32(50),
+                Token::TupleEnd,
+            ],
+            "invalid length 5, expected tuple of two integers",
         );
     }
 
