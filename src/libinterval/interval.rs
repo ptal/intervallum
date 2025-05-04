@@ -44,7 +44,6 @@ use trilean::SKleene;
 
 use num_traits::{Num, Zero};
 use std::cmp::{max, min};
-use std::convert::TryFrom;
 use std::fmt::{self, Display, Error, Formatter};
 use std::marker::PhantomData;
 use std::ops::{Add, Mul, Sub};
@@ -66,8 +65,6 @@ where
     {
         if self.is_empty() {
             serializer.serialize_none()
-        } else if self.is_singleton() {
-            self.lb.serialize(serializer)
         } else {
             let mut tuple = serializer.serialize_tuple(2)?;
             tuple.serialize_element(&self.lb)?;
@@ -79,9 +76,7 @@ where
 
 impl<'de, Bound> Deserialize<'de> for Interval<Bound>
 where
-    Bound: Width + Num + Deserialize<'de> + TryFrom<i64> + TryFrom<u64>,
-    <Bound as TryFrom<i64>>::Error: std::fmt::Display,
-    <Bound as TryFrom<u64>>::Error: std::fmt::Display,
+    Bound: Width + Num + Deserialize<'de>,
 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -99,14 +94,12 @@ where
         }
         impl<'de, Bound> Visitor<'de> for IntervalVisitor<Bound>
         where
-            Bound: Width + Deserialize<'de> + Num + TryFrom<i64> + TryFrom<u64>,
-            <Bound as TryFrom<i64>>::Error: std::fmt::Display,
-            <Bound as TryFrom<u64>>::Error: std::fmt::Display,
+            Bound: Width + Deserialize<'de> + Num,
         {
             type Value = Interval<Bound>;
 
             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                formatter.write_str("tuple of two integers or single integer or none")
+                formatter.write_str("tuple of two numbers or none")
             }
 
             fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
@@ -129,52 +122,6 @@ where
                 Ok(Interval::new(lower, upper))
             }
 
-            fn visit_i64<E>(self, v: i64) -> Result<Self::Value, E>
-            where
-                E: de::Error,
-            {
-                let v = Bound::try_from(v).map_err(|e| {
-                    E::custom(format!(
-                        "integer {} cannot be represented as target type: {}",
-                        v, e
-                    ))
-                })?;
-                if v < <Bound as Width>::min_value() {
-                    Err(de::Error::custom(
-                        "Lower bound exceeds the minimum value of a bound.",
-                    ))
-                } else if v > <Bound as Width>::max_value() {
-                    Err(de::Error::custom(
-                        "Upper bound exceeds the maximum value of a bound.",
-                    ))
-                } else {
-                    Ok(Interval::singleton(Bound::from(v)))
-                }
-            }
-
-            fn visit_u64<E>(self, v: u64) -> Result<Self::Value, E>
-            where
-                E: de::Error,
-            {
-                let v = Bound::try_from(v).map_err(|e| {
-                    E::custom(format!(
-                        "integer {} cannot be represented as target type: {}",
-                        v, e
-                    ))
-                })?;
-                if v < <Bound as Width>::min_value() {
-                    Err(de::Error::custom(
-                        "Lower bound exceeds the minimum value of a bound.",
-                    ))
-                } else if v > <Bound as Width>::max_value() {
-                    Err(de::Error::custom(
-                        "Upper bound exceeds the maximum value of a bound.",
-                    ))
-                } else {
-                    Ok(Interval::singleton(Bound::from(v)))
-                }
-            }
-
             fn visit_none<E>(self) -> Result<Self::Value, E>
             where
                 E: de::Error,
@@ -182,7 +129,7 @@ where
                 Ok(Interval::<Bound>::empty())
             }
         }
-        deserializer.deserialize_any(IntervalVisitor::<Bound>::new())
+        deserializer.deserialize_any(IntervalVisitor::new())
     }
 }
 
@@ -2510,7 +2457,7 @@ mod tests {
                 Token::I32(30),
                 Token::TupleEnd,
             ],
-            "invalid length 3, expected tuple of two integers or single integer or none",
+            "invalid length 3, expected tuple of two numbers or none",
         );
     }
 
@@ -2526,7 +2473,7 @@ mod tests {
                 Token::I32(50),
                 Token::TupleEnd,
             ],
-            "invalid length 5, expected tuple of two integers or single integer or none",
+            "invalid length 5, expected tuple of two numbers or none",
         );
     }
 
@@ -2555,44 +2502,6 @@ mod tests {
                 Token::I64(<i64 as Width>::max_value()),
                 Token::TupleEnd,
             ],
-        );
-    }
-
-    #[test]
-    fn test_ser_de_interval_singleton() {
-        let interval = Interval::singleton(-12);
-        assert_tokens(&interval, &[Token::I32(-12)]);
-    }
-
-    #[test]
-    fn test_ser_de_interval_singleton_type_change() {
-        let interval = Interval::singleton(-12);
-        assert_de_tokens(&interval, &[Token::I16(-12)]);
-    }
-
-    #[test]
-    fn test_ser_de_interval_singleton_type_change_overflow_signed() {
-        assert_de_tokens_error::<Interval<i8>>( &[Token::I16(-129)], "integer -129 cannot be represented as target type: out of range integral type conversion attempted");
-    }
-
-    #[test]
-    fn test_ser_de_interval_singleton_type_change_overflow_unsigned() {
-        assert_de_tokens_error::<Interval<u8>>( &[Token::U16(256)], "integer 256 cannot be represented as target type: out of range integral type conversion attempted");
-    }
-
-    #[test]
-    fn test_ser_de_interval_singleton_type_change_exceeds_lower() {
-        assert_de_tokens_error::<Interval<i32>>(
-            &[Token::I64(i32::MIN as i64)],
-            "Lower bound exceeds the minimum value of a bound.",
-        );
-    }
-
-    #[test]
-    fn test_ser_de_interval_singleton_type_change_exceeds_upper() {
-        assert_de_tokens_error::<Interval<u32>>(
-            &[Token::U64(u32::MAX as u64)],
-            "Upper bound exceeds the maximum value of a bound.",
         );
     }
 
