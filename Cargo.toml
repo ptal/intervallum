@@ -19,9 +19,9 @@ path = "src/libinterval/lib.rs"
 
 [dependencies]
 
-num-integer = "0.1.44"
-num-traits = "0.2.14"
-bit-set = "0.5.0"
+num-integer = "0.1.46"
+num-traits = "0.2.19"
+bit-set = "0.8.0"
 gcollections = "1.5.0"
 trilean = "1.1.0"
 serde = "1.0.219"
