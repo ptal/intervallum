@@ -37,11 +37,15 @@
 use crate::ops::*;
 use gcollections::ops::*;
 use gcollections::*;
+use serde::de::{self, SeqAccess, Visitor};
+use serde::ser::SerializeTuple;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use trilean::SKleene;
 
 use num_traits::{Num, Zero};
 use std::cmp::{max, min};
-use std::fmt::{Display, Error, Formatter};
+use std::fmt::{self, Display, Error, Formatter};
+use std::marker::PhantomData;
 use std::ops::{Add, Mul, Sub};
 
 /// Closed interval (endpoints included).
@@ -49,6 +53,84 @@ use std::ops::{Add, Mul, Sub};
 pub struct Interval<Bound> {
     lb: Bound,
     ub: Bound,
+}
+
+impl<Bound> Serialize for Interval<Bound>
+where
+    Bound: Serialize + Width + Num,
+{
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        if self.is_empty() {
+            serializer.serialize_none()
+        } else {
+            let mut tuple = serializer.serialize_tuple(2)?;
+            tuple.serialize_element(&self.lb)?;
+            tuple.serialize_element(&self.ub)?;
+            tuple.end()
+        }
+    }
+}
+
+impl<'de, Bound> Deserialize<'de> for Interval<Bound>
+where
+    Bound: Width + Num + Deserialize<'de>,
+{
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct IntervalVisitor<Bound> {
+            marker: PhantomData<fn() -> Bound>,
+        }
+        impl<Bound> IntervalVisitor<Bound> {
+            fn new() -> Self {
+                IntervalVisitor {
+                    marker: PhantomData,
+                }
+            }
+        }
+        impl<'de, Bound> Visitor<'de> for IntervalVisitor<Bound>
+        where
+            Bound: Width + Deserialize<'de> + Num,
+        {
+            type Value = Interval<Bound>;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("tuple of two numbers or none")
+            }
+
+            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+            where
+                A: SeqAccess<'de>,
+            {
+                let lower = seq
+                    .next_element::<Bound>()?
+                    .ok_or_else(|| de::Error::invalid_length(0, &self))?;
+                let upper = seq
+                    .next_element::<Bound>()?
+                    .ok_or_else(|| de::Error::invalid_length(1, &self))?;
+                let mut extra_elements = 0;
+                while seq.next_element::<de::IgnoredAny>()?.is_some() {
+                    extra_elements += 1;
+                }
+                if extra_elements > 0 {
+                    return Err(de::Error::invalid_length(2 + extra_elements, &self));
+                }
+                Ok(Interval::new(lower, upper))
+            }
+
+            fn visit_none<E>(self) -> Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                Ok(Interval::<Bound>::empty())
+            }
+        }
+        deserializer.deserialize_any(IntervalVisitor::new())
+    }
 }
 
 impl<Bound> IntervalKind for Interval<Bound> {}
@@ -1371,6 +1453,8 @@ where
 #[allow(non_upper_case_globals)]
 #[cfg(test)]
 mod tests {
+    use serde_test::{assert_de_tokens, assert_de_tokens_error, assert_tokens, Token};
+
     use super::*;
 
     const empty: Interval<i32> = Interval { lb: 1, ub: 0 };
@@ -2333,5 +2417,97 @@ mod tests {
             /* a |-| b */ vec![zero, whole, whole, zero, i0_1, i0_2, i0_10, im5_10, im5_10],
         );
         tester.test_all();
+    }
+
+    #[test]
+    fn test_ser_de_interval() {
+        let interval = Interval::new(10, 20);
+        assert_tokens(
+            &interval,
+            &[
+                Token::Tuple { len: 2 },
+                Token::I32(10),
+                Token::I32(20),
+                Token::TupleEnd,
+            ],
+        );
+    }
+
+    #[test]
+    fn test_de_interval_mixed_types() {
+        let interval = Interval::new(-5, 15);
+        assert_de_tokens::<Interval<i32>>(
+            &interval,
+            &[
+                Token::Tuple { len: 2 },
+                Token::I32(-5),
+                Token::I64(15),
+                Token::TupleEnd,
+            ],
+        );
+    }
+
+    #[test]
+    fn test_de_interval_extra_token() {
+        assert_de_tokens_error::<Interval<i32>>(
+            &[
+                Token::Tuple { len: 3 },
+                Token::I32(10),
+                Token::I32(20),
+                Token::I32(30),
+                Token::TupleEnd,
+            ],
+            "invalid length 3, expected tuple of two numbers or none",
+        );
+    }
+
+    #[test]
+    fn test_de_interval_extra_tokens() {
+        assert_de_tokens_error::<Interval<i32>>(
+            &[
+                Token::Tuple { len: 5 },
+                Token::I32(10),
+                Token::I32(20),
+                Token::I32(30),
+                Token::I32(40),
+                Token::I32(50),
+                Token::TupleEnd,
+            ],
+            "invalid length 5, expected tuple of two numbers or none",
+        );
+    }
+
+    #[test]
+    fn test_ser_de_interval_u8() {
+        let interval = Interval::<u8>::new(10, 20);
+        assert_tokens(
+            &interval,
+            &[
+                Token::Tuple { len: 2 },
+                Token::U8(10),
+                Token::U8(20),
+                Token::TupleEnd,
+            ],
+        );
+    }
+
+    #[test]
+    fn test_ser_de_interval_i64() {
+        let interval = Interval::<i64>::whole();
+        assert_tokens(
+            &interval,
+            &[
+                Token::Tuple { len: 2 },
+                Token::I64(<i64 as Width>::min_value()),
+                Token::I64(<i64 as Width>::max_value()),
+                Token::TupleEnd,
+            ],
+        );
+    }
+
+    #[test]
+    fn test_ser_de_empty_interval() {
+        let interval = Interval::<i32>::empty();
+        assert_tokens(&interval, &[Token::None]);
     }
 }
