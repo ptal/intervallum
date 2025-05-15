@@ -46,7 +46,7 @@ use num_traits::{Num, Zero};
 use std::cmp::{max, min};
 use std::fmt::{self, Display, Error, Formatter};
 use std::marker::PhantomData;
-use std::ops::{Add, Mul, RangeInclusive, Sub};
+use std::ops::{Add, Mul, RangeFrom, RangeInclusive, Sub};
 
 /// Closed interval (endpoints included).
 #[derive(Debug, Copy, Clone)]
@@ -1406,7 +1406,8 @@ impl<Bound: Width + Num> ToInterval<Bound> for RangeInclusive<Bound> {
     /// let range = 2..=6;
     /// assert_eq!(range.to_interval(), Interval::new(2, 6));
     /// ```
-    /// The inclusive range is required because the endpoints are included.
+    /// The inclusive range is required because the endpoints are included in the interval.
+    /// Therefore, the exclusive range fails to compile.
     /// ```compile_fail
     /// # use interval::prelude::*;
     /// let range = 2..6;
@@ -1414,6 +1415,28 @@ impl<Bound: Width + Num> ToInterval<Bound> for RangeInclusive<Bound> {
     /// ```
     fn to_interval(self) -> Interval<Bound> {
         Interval::new(self.start().clone(), self.end().clone())
+    }
+}
+
+impl<Bound: Width + Num> ToInterval<Bound> for RangeFrom<Bound> {
+    /// Converts a range with a lower bound to an interval.
+    /// ```
+    /// # use interval::prelude::*;
+    /// let range = 2..;
+    /// assert_eq!(range.to_interval(), Interval::new(2, <i32 as Width>::max_value()));
+    /// ```
+    /// See [`Interval::whole`] for caveats on the upper bound,
+    /// which means the following example fails to compile:
+    /// ```should_panic
+    /// # use interval::prelude::*;
+    /// let range = 255u8..;
+    /// let _ = range.to_interval();
+    /// ```
+    fn to_interval(self) -> Interval<Bound> {
+        Interval::new(
+            self.start.clone(),
+            max(<Bound as Width>::max_value(), self.start.clone()),
+        )
     }
 }
 
@@ -2539,5 +2562,23 @@ mod tests {
     fn empty_range_inclusive_to_interval_test() {
         let interval = (8..=3).to_interval();
         assert_eq!(&interval, &Interval::empty());
+    }
+
+    #[test]
+    fn range_from_to_interval_test() {
+        let interval = (23u8..).to_interval();
+        assert_eq!(&interval, &Interval::new(23, 254));
+    }
+
+    #[test]
+    #[should_panic]
+    fn range_from_u8_to_interval_edge_case_test() {
+        let _ = (255u8..).to_interval();
+    }
+
+    #[test]
+    #[should_panic]
+    fn range_from_i8_to_interval_edge_case_test() {
+        let _ = (-128i8..).to_interval();
     }
 }
