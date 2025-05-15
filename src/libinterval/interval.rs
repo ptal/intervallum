@@ -46,7 +46,7 @@ use num_traits::{Num, Zero};
 use std::cmp::{max, min};
 use std::fmt::{self, Display, Error, Formatter};
 use std::marker::PhantomData;
-use std::ops::{Add, Mul, Sub};
+use std::ops::{Add, Mul, RangeInclusive, Sub};
 
 /// Closed interval (endpoints included).
 #[derive(Debug, Copy, Clone)]
@@ -1399,6 +1399,24 @@ impl<Bound: Width + Num> ToInterval<Bound> for Bound {
     }
 }
 
+impl<Bound: Width + Num> ToInterval<Bound> for RangeInclusive<Bound> {
+    /// Converts an inclusive range to an interval.
+    /// ```
+    /// # use interval::prelude::*;
+    /// let range = 2..=6;
+    /// assert_eq!(range.to_interval(), Interval::new(2, 6));
+    /// ```
+    /// The inclusive range is required because the endpoints are included.
+    /// ```compile_fail
+    /// # use interval::prelude::*;
+    /// let range = 2..6;
+    /// let _ = range.to_interval();
+    /// ```
+    fn to_interval(self) -> Interval<Bound> {
+        Interval::new(self.start().clone(), self.end().clone())
+    }
+}
+
 impl<Bound> Join for Interval<Bound>
 where
     Bound: Width + Num,
@@ -2509,5 +2527,17 @@ mod tests {
     fn test_ser_de_empty_interval() {
         let interval = Interval::<i32>::empty();
         assert_tokens(&interval, &[Token::None]);
+    }
+
+    #[test]
+    fn range_inclusive_to_interval_test() {
+        let interval = (-4..=25).to_interval();
+        assert_eq!(&interval, &Interval::new(-4, 25));
+    }
+
+    #[test]
+    fn empty_range_inclusive_to_interval_test() {
+        let interval = (8..=3).to_interval();
+        assert_eq!(&interval, &Interval::empty());
     }
 }
